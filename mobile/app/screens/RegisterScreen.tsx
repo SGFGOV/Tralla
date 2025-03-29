@@ -76,7 +76,7 @@ export default function RegisterScreen({ navigation }: any) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.formContainer}>
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join Proximify today</Text>
+          <Text style={styles.subtitle}>Join Tralla today</Text>
           
           <View style={styles.inputContainer}>
             <TextInput

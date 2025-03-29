@@ -61,8 +61,8 @@ export default function LoginScreen({ navigation }: any) {
     >
       <StatusBar style="light" />
       <View style={styles.formContainer}>
-        <Text style={styles.title}>Proximify</Text>
-        <Text style={styles.subtitle}>Connect with people nearby</Text>
+        <Text style={styles.title}>Tralla</Text>
+        <Text style={styles.subtitle}>Connect with vibes nearby</Text>
         
         <View style={styles.inputContainer}>
           <TextInput
