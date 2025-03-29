@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="1242" height="2436" viewBox="0 0 1242 2436" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1242" height="2436" fill="#6366F1" />
+  
+  <!-- Gradient overlay -->
+  <rect width="1242" height="2436" fill="url(#paint0_radial)" />
+  
+  <!-- Logo -->
+  <g transform="translate(371, 1068)">
+    <!-- Circle for people icon -->
+    <circle cx="250" cy="100" r="100" fill="white" />
+    
+    <!-- Stylized "T" for Tralla -->
+    <path d="M368 0H132C122.059 0 114 8.059 114 18V44C114 53.941 122.059 62 132 62H222V242C222 251.941 230.059 260 240 260H260C269.941 260 278 251.941 278 242V62H368C377.941 62 386 53.941 386 44V18C386 8.059 377.941 0 368 0Z" fill="white" />
+    
+    <!-- Person icon -->
+    <path d="M250 0C344.934 0 422 77.066 422 172C422 266.934 344.934 344 250 344C155.066 344 78 266.934 78 172C78 77.066 155.066 0 250 0Z" fill="white" />
+    <path d="M250 424C164.487 424 84.26 396.15 17.775 351.025C-24.85 410.125 -50 481.875 -50 560V574H550V560C550 481.875 524.85 410.125 482.225 351.025C415.74 396.15 335.513 424 250 424Z" fill="white" />
+  </g>
+  
+  <!-- App name -->
+  <text x="621" y="1468" font-family="Inter, sans-serif" font-weight="700" font-size="120" text-anchor="middle" fill="white">TRALLA</text>
+  
+  <!-- Tagline -->
+  <text x="621" y="1548" font-family="Inter, sans-serif" font-weight="400" font-size="48" text-anchor="middle" fill="white">Connect with people nearby</text>
+  
+  <!-- Gradient definition -->
+  <defs>
+    <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(621 1218) rotate(90) scale(1218 621)">
+      <stop stop-color="#818CF8" stop-opacity="0.2" />
+      <stop offset="1" stop-color="#6366F1" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+</svg>

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="600" height="400" viewBox="0 0 600 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Elements -->
+  <circle cx="300" cy="200" r="180" fill="#F3F4F6" opacity="0.5" />
+  <circle cx="300" cy="200" r="120" fill="#E5E7EB" opacity="0.5" />
+  
+  <!-- Mobile Phone Frame -->
+  <rect x="220" y="60" width="160" height="320" rx="20" fill="white" stroke="#D1D5DB" stroke-width="4" />
+  <rect x="230" y="80" width="140" height="280" rx="2" fill="#F9FAFB" />
+  
+  <!-- App Interface Elements -->
+  <!-- Header -->
+  <rect x="230" y="80" width="140" height="40" rx="2" fill="#6366F1" />
+  <circle cx="260" cy="100" r="15" fill="white" opacity="0.9" />
+  <rect x="290" y="92" width="60" height="8" rx="4" fill="white" opacity="0.9" />
+  <rect x="290" y="106" width="40" height="4" rx="2" fill="white" opacity="0.6" />
+  
+  <!-- Map with location -->
+  <rect x="240" y="130" width="120" height="120" rx="4" fill="#E5E7EB" />
+  <circle cx="300" cy="190" r="40" fill="#6366F1" opacity="0.2" />
+  <circle cx="300" cy="190" r="5" fill="#6366F1" />
+  
+  <!-- Nearby users -->
+  <circle cx="280" cy="170" r="4" fill="#6366F1" />
+  <circle cx="320" cy="180" r="4" fill="#6366F1" />
+  <circle cx="290" cy="210" r="4" fill="#6366F1" />
+  <circle cx="330" cy="200" r="4" fill="#6366F1" />
+  <circle cx="270" cy="190" r="4" fill="#6366F1" />
+  
+  <!-- Message List -->
+  <rect x="240" y="260" width="120" height="24" rx="4" fill="white" stroke="#E5E7EB" stroke-width="1" />
+  <circle cx="252" cy="272" r="6" fill="#6366F1" />
+  <rect x="264" y="268" width="40" height="4" rx="2" fill="#4B5563" />
+  <rect x="264" y="276" width="80" height="2" rx="1" fill="#9CA3AF" />
+  
+  <rect x="240" y="290" width="120" height="24" rx="4" fill="white" stroke="#E5E7EB" stroke-width="1" />
+  <circle cx="252" cy="302" r="6" fill="#818CF8" />
+  <rect x="264" y="298" width="40" height="4" rx="2" fill="#4B5563" />
+  <rect x="264" y="306" width="80" height="2" rx="1" fill="#9CA3AF" />
+  
+  <rect x="240" y="320" width="120" height="24" rx="4" fill="white" stroke="#E5E7EB" stroke-width="1" />
+  <circle cx="252" cy="332" r="6" fill="#A5B4FC" />
+  <rect x="264" y="328" width="40" height="4" rx="2" fill="#4B5563" />
+  <rect x="264" y="336" width="80" height="2" rx="1" fill="#9CA3AF" />
+  
+  <!-- People nearby -->
+  <circle cx="120" cy="150" r="50" fill="white" stroke="#E5E7EB" stroke-width="2" />
+  <circle cx="120" cy="130" r="15" fill="#6366F1" />
+  <rect x="95" y="160" width="50" height="6" rx="3" fill="#4B5563" />
+  <rect x="105" y="172" width="30" height="4" rx="2" fill="#9CA3AF" />
+  
+  <circle cx="480" cy="180" r="50" fill="white" stroke="#E5E7EB" stroke-width="2" />
+  <circle cx="480" cy="160" r="15" fill="#818CF8" />
+  <rect x="455" y="190" width="50" height="6" rx="3" fill="#4B5563" />
+  <rect x="465" y="202" width="30" height="4" rx="2" fill="#9CA3AF" />
+  
+  <circle cx="400" cy="80" r="40" fill="white" stroke="#E5E7EB" stroke-width="2" />
+  <circle cx="400" cy="65" r="12" fill="#A5B4FC" />
+  <rect x="380" y="85" width="40" height="5" rx="2.5" fill="#4B5563" />
+  <rect x="385" y="95" width="30" height="3" rx="1.5" fill="#9CA3AF" />
+  
+  <!-- Connection Lines -->
+  <line x1="174" y1="150" x2="230" y2="170" stroke="#6366F1" stroke-width="2" stroke-dasharray="4 4" />
+  <line x1="230" y1="180" x2="426" y2="180" stroke="#818CF8" stroke-width="2" stroke-dasharray="4 4" />
+  <line x1="358" y1="88" x2="260" y2="130" stroke="#A5B4FC" stroke-width="2" stroke-dasharray="4 4" />
+  
+  <!-- Decorative Elements -->
+  <circle cx="100" cy="320" r="30" fill="#6366F1" opacity="0.1" />
+  <circle cx="500" cy="280" r="35" fill="#818CF8" opacity="0.1" />
+  <circle cx="180" cy="80" r="25" fill="#A5B4FC" opacity="0.1" />
+  <circle cx="450" cy="100" r="20" fill="#6366F1" opacity="0.1" />
+</svg>

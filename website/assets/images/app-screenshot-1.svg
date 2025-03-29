@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="240" height="480" viewBox="0 0 240 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Phone Frame -->
+  <rect width="240" height="480" rx="24" fill="#111827" />
+  <rect x="8" y="8" width="224" height="464" rx="16" fill="#F9FAFB" />
+  
+  <!-- Status Bar -->
+  <rect x="8" y="8" width="224" height="40" rx="16" fill="#6366F1" />
+  <circle cx="28" cy="28" r="10" fill="white" />
+  <rect x="48" y="24" width="120" height="8" rx="4" fill="white" opacity="0.8" />
+  <rect x="178" y="23" width="14" height="10" rx="2" fill="white" opacity="0.8" />
+  <rect x="198" y="23" width="14" height="10" rx="2" fill="white" opacity="0.8" />
+  
+  <!-- Nearby Screen -->
+  <rect x="8" y="48" width="224" height="384" rx="2" fill="#F3F4F6" />
+  
+  <!-- Map -->
+  <rect x="16" y="56" width="208" height="120" rx="4" fill="#E5E7EB" />
+  <circle cx="120" cy="116" r="40" fill="#6366F1" opacity="0.2" />
+  <circle cx="120" cy="116" r="5" fill="#6366F1" />
+  
+  <!-- User Pins -->
+  <circle cx="100" cy="96" r="4" fill="#6366F1" />
+  <circle cx="140" cy="106" r="4" fill="#6366F1" />
+  <circle cx="110" cy="136" r="4" fill="#6366F1" />
+  <circle cx="150" cy="126" r="4" fill="#6366F1" />
+  <circle cx="90" cy="116" r="4" fill="#6366F1" />
+  
+  <!-- Search Bar -->
+  <rect x="16" y="185" width="208" height="40" rx="20" fill="white" />
+  <circle cx="36" cy="205" r="10" fill="#6366F1" opacity="0.1" />
+  <rect x="56" y="200" width="100" height="10" rx="2" fill="#D1D5DB" />
+  <path d="M32 205L36 201L40 205L36 209L32 205Z" fill="#6366F1" />
+  
+  <!-- Title -->
+  <rect x="16" y="240" width="80" height="12" rx="2" fill="#1F2937" />
+  
+  <!-- Nearby People -->
+  <rect x="16" y="260" width="208" height="70" rx="8" fill="white" />
+  <circle cx="51" cy="295" r="25" fill="#6366F1" opacity="0.1" />
+  <circle cx="51" cy="285" r="10" fill="#6366F1" />
+  <path d="M51 308C47.6863 308 44.6863 306.314 42.3726 303.314C41.1315 304.284 40 305.941 40 308H62C62 305.941 60.8685 304.284 59.6274 303.314C57.3137 306.314 54.3137 308 51 308Z" fill="#6366F1" />
+  <rect x="86" y="280" width="60" height="10" rx="2" fill="#1F2937" />
+  <rect x="86" y="295" width="120" height="6" rx="2" fill="#9CA3AF" />
+  <rect x="86" y="307" width="40" height="6" rx="2" fill="#6366F1" />
+  
+  <rect x="16" y="340" width="208" height="70" rx="8" fill="white" />
+  <circle cx="51" cy="375" r="25" fill="#818CF8" opacity="0.1" />
+  <circle cx="51" cy="365" r="10" fill="#818CF8" />
+  <path d="M51 388C47.6863 388 44.6863 386.314 42.3726 383.314C41.1315 384.284 40 385.941 40 388H62C62 385.941 60.8685 384.284 59.6274 383.314C57.3137 386.314 54.3137 388 51 388Z" fill="#818CF8" />
+  <rect x="86" y="360" width="60" height="10" rx="2" fill="#1F2937" />
+  <rect x="86" y="375" width="120" height="6" rx="2" fill="#9CA3AF" />
+  <rect x="86" y="387" width="40" height="6" rx="2" fill="#818CF8" />
+  
+  <!-- Bottom Navigation -->
+  <rect x="8" y="432" width="224" height="40" rx="2" fill="white" />
+  <circle cx="40" cy="452" r="12" fill="#6366F1" />
+  <circle cx="100" cy="452" r="12" fill="#D1D5DB" />
+  <circle cx="160" cy="452" r="12" fill="#D1D5DB" />
+  <circle cx="220" cy="452" r="12" fill="#D1D5DB" />
+</svg>

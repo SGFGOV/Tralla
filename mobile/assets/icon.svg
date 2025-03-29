@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <rect width="1024" height="1024" rx="256" fill="url(#paint0_linear)" />
+  
+  <!-- Central icon - stylized "T" for Tralla -->
+  <path d="M512 300C606.934 300 684 377.066 684 472C684 566.934 606.934 644 512 644C417.066 644 340 566.934 340 472C340 377.066 417.066 300 512 300Z" fill="white" />
+  <path d="M512 724C426.487 724 346.26 696.15 279.775 651.025C237.15 710.125 212 781.875 212 860V874H812V860C812 781.875 786.85 710.125 744.225 651.025C677.74 696.15 597.513 724 512 724Z" fill="white" />
+  <path d="M630 224H394C384.059 224 376 232.059 376 242V268C376 277.941 384.059 286 394 286H484V466C484 475.941 492.059 484 502 484H522C531.941 484 540 475.941 540 466V286H630C639.941 286 648 277.941 648 268V242C648 232.059 639.941 224 630 224Z" fill="white" />
+  
+  <!-- Gradient definition -->
+  <defs>
+    <linearGradient id="paint0_linear" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#818CF8" />
+      <stop offset="1" stop-color="#6366F1" />
+    </linearGradient>
+  </defs>
+</svg>

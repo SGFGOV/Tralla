@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="240" height="480" viewBox="0 0 240 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Phone Frame -->
+  <rect width="240" height="480" rx="24" fill="#111827" />
+  <rect x="8" y="8" width="224" height="464" rx="16" fill="#F9FAFB" />
+  
+  <!-- Status Bar -->
+  <rect x="8" y="8" width="224" height="40" rx="16" fill="#6366F1" />
+  <circle cx="28" cy="28" r="10" fill="white" />
+  <rect x="48" y="24" width="120" height="8" rx="4" fill="white" opacity="0.8" />
+  <rect x="178" y="23" width="14" height="10" rx="2" fill="white" opacity="0.8" />
+  <rect x="198" y="23" width="14" height="10" rx="2" fill="white" opacity="0.8" />
+  
+  <!-- Group Screen -->
+  <rect x="8" y="48" width="224" height="384" rx="2" fill="#F3F4F6" />
+  
+  <!-- Group Header -->
+  <rect x="8" y="48" width="224" height="80" rx="2" fill="white" />
+  <circle cx="48" cy="88" r="20" fill="#6366F1" opacity="0.1" />
+  <path d="M48 78C50.7614 78 53 80.2386 53 83C53 85.7614 50.7614 88 48 88C45.2386 88 43 85.7614 43 83C43 80.2386 45.2386 78 48 78Z" fill="#6366F1" />
+  <path d="M48 96C44 96 40.5 94.2105 38 91.2632C36.5 92.4211 35.5 94.2105 35.5 96H60.5C60.5 94.2105 59.5 92.4211 58 91.2632C55.5 94.2105 52 96 48 96Z" fill="#6366F1" />
+  <rect x="78" y="78" width="100" height="12" rx="2" fill="#1F2937" />
+  <rect x="78" y="96" width="60" height="8" rx="2" fill="#6366F1" />
+  <circle cx="195" cy="88" r="12" fill="#6366F1" opacity="0.1" />
+  <path d="M190 88H200M195 83V93" stroke="#6366F1" stroke-width="2" />
+  
+  <!-- Expense Section -->
+  <rect x="16" y="140" width="80" height="12" rx="2" fill="#1F2937" />
+  
+  <rect x="16" y="160" width="208" height="80" rx="8" fill="white" />
+  <rect x="26" y="170" width="80" height="12" rx="2" fill="#1F2937" />
+  <rect x="26" y="188" width="120" height="8" rx="2" fill="#9CA3AF" />
+  
+  <rect x="26" y="204" width="50" height="26" rx="4" fill="#F3F4F6" />
+  <rect x="36" y="213" width="30" height="8" rx="2" fill="#1F2937" />
+  
+  <rect x="86" y="204" width="50" height="26" rx="4" fill="#F3F4F6" />
+  <rect x="96" y="213" width="30" height="8" rx="2" fill="#1F2937" />
+  
+  <rect x="146" y="204" width="50" height="26" rx="4" fill="#6366F1" />
+  <rect x="156" y="213" width="30" height="8" rx="2" fill="white" />
+  
+  <!-- Activities Section -->
+  <rect x="16" y="255" width="80" height="12" rx="2" fill="#1F2937" />
+  
+  <rect x="16" y="275" width="208" height="80" rx="8" fill="white" />
+  <rect x="26" y="285" width="140" height="12" rx="2" fill="#1F2937" />
+  <rect x="26" y="303" width="100" height="8" rx="2" fill="#9CA3AF" />
+  
+  <circle cx="186" cy="315" r="20" fill="#6366F1" opacity="0.1" />
+  <circle cx="178" cy="310" r="4" fill="#6366F1" />
+  <circle cx="194" cy="310" r="4" fill="#6366F1" />
+  <path d="M178 322C184 322 190 326 186 330C182 326 188 322 194 322" stroke="#6366F1" stroke-width="2" stroke-linecap="round" />
+  
+  <rect x="26" y="325" width="40" height="20" rx="10" fill="#6366F1" />
+  <rect x="36" y="331" width="20" height="8" rx="2" fill="white" />
+  
+  <rect x="76" y="325" width="40" height="20" rx="10" fill="#F3F4F6" />
+  <rect x="86" y="331" width="20" height="8" rx="2" fill="#9CA3AF" />
+  
+  <!-- Bottom Navigation -->
+  <rect x="8" y="432" width="224" height="40" rx="2" fill="white" />
+  <circle cx="40" cy="452" r="12" fill="#D1D5DB" />
+  <circle cx="100" cy="452" r="12" fill="#D1D5DB" />
+  <circle cx="160" cy="452" r="12" fill="#6366F1" />
+  <circle cx="220" cy="452" r="12" fill="#D1D5DB" />
+</svg>
