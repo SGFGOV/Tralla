@@ -35,6 +35,15 @@ import {
   GiftSuggestion,
   InsertGiftSuggestion,
   giftSuggestions,
+  PaymentMethod,
+  InsertPaymentMethod,
+  paymentMethods,
+  Transaction,
+  InsertTransaction,
+  transactions,
+  GiftOrder,
+  InsertGiftOrder,
+  giftOrders,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -114,6 +123,29 @@ export interface IStorage {
   createGiftSuggestion(suggestion: InsertGiftSuggestion): Promise<GiftSuggestion>;
   updateGiftSuggestion(id: number, suggestion: Partial<GiftSuggestion>): Promise<GiftSuggestion>;
   deleteGiftSuggestion(id: number): Promise<void>;
+  
+  // Payment methods
+  getPaymentMethods(userId: number): Promise<PaymentMethod[]>;
+  getPaymentMethod(id: number): Promise<PaymentMethod | undefined>;
+  createPaymentMethod(method: InsertPaymentMethod): Promise<PaymentMethod>;
+  updatePaymentMethod(id: number, method: Partial<PaymentMethod>): Promise<PaymentMethod>;
+  deletePaymentMethod(id: number): Promise<void>;
+  setDefaultPaymentMethod(userId: number, paymentMethodId: number): Promise<PaymentMethod>;
+  
+  // Transactions
+  getTransaction(id: number): Promise<Transaction | undefined>;
+  getUserTransactions(userId: number): Promise<Transaction[]>;
+  getExpenseTransactions(expenseId: number): Promise<Transaction[]>;
+  getGiftTransactions(giftSuggestionId: number): Promise<Transaction[]>;
+  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  updateTransaction(id: number, transaction: Partial<Transaction>): Promise<Transaction>;
+  
+  // Gift orders
+  getGiftOrder(id: number): Promise<GiftOrder | undefined>;
+  getUserGiftOrders(userId: number): Promise<GiftOrder[]>;
+  getRecipientGiftOrders(recipientId: number): Promise<GiftOrder[]>;
+  createGiftOrder(order: InsertGiftOrder): Promise<GiftOrder>;
+  updateGiftOrder(id: number, order: Partial<GiftOrder>): Promise<GiftOrder>;
 }
 
 export class MemStorage implements IStorage {
@@ -129,6 +161,9 @@ export class MemStorage implements IStorage {
   private activityParticipants: Map<number, ActivityParticipant>;
   private friends: Map<number, Friend>;
   private giftSuggestions: Map<number, GiftSuggestion>;
+  private paymentMethods: Map<number, PaymentMethod>;
+  private transactions: Map<number, Transaction>;
+  private giftOrders: Map<number, GiftOrder>;
   
   private userIdCounter: number;
   private proximitySettingsIdCounter: number;
@@ -142,6 +177,9 @@ export class MemStorage implements IStorage {
   private activityParticipantIdCounter: number;
   private friendIdCounter: number;
   private giftSuggestionIdCounter: number;
+  private paymentMethodIdCounter: number;
+  private transactionIdCounter: number;
+  private giftOrderIdCounter: number;
 
   constructor() {
     this.users = new Map();
@@ -156,6 +194,9 @@ export class MemStorage implements IStorage {
     this.activityParticipants = new Map();
     this.friends = new Map();
     this.giftSuggestions = new Map();
+    this.paymentMethods = new Map();
+    this.transactions = new Map();
+    this.giftOrders = new Map();
     
     this.userIdCounter = 1;
     this.proximitySettingsIdCounter = 1;
@@ -169,6 +210,9 @@ export class MemStorage implements IStorage {
     this.activityParticipantIdCounter = 1;
     this.friendIdCounter = 1;
     this.giftSuggestionIdCounter = 1;
+    this.paymentMethodIdCounter = 1;
+    this.transactionIdCounter = 1;
+    this.giftOrderIdCounter = 1;
   }
 
   // User operations

@@ -1,214 +1,314 @@
-import NfcManager, { NfcTech, Ndef } from 'react-native-nfc-manager';
 import { Platform } from 'react-native';
 
-// Class to handle NFC operations
-class NfcHandler {
-  private isSupported: boolean = false;
-  private isInitialized: boolean = false;
-  private isEnabled: boolean = false;
+// Interface for NFC reader session
+export interface NfcReaderSession {
+  id: string;
+  active: boolean;
+  startTime: number;
+}
 
-  // Initialize NFC manager
-  async init() {
+// Interface for user profile stored on NFC tag
+export interface NfcProfile {
+  userId: number;
+  username: string;
+  displayName: string;
+  avatarUrl?: string;
+  timestamp: number;
+}
+
+// Class to handle NFC interactions
+class NfcManagerClass {
+  private isInitialized: boolean = false;
+  private hasSupport: boolean = false;
+  private isScanStarted: boolean = false;
+  private currentSession: NfcReaderSession | null = null;
+  private onTagDiscoveredCallback: ((tag: any) => Promise<void>) | null = null;
+  
+  // Initialize NFC manager and check for device support
+  async init(): Promise<{ initialized: boolean; error?: string }> {
     try {
-      // Check if the device supports NFC
-      this.isSupported = await NfcManager.isSupported();
+      // In a real app, this would check if the device supports NFC:
+      // const supported = await NfcManager.isSupported();
+      // if (!supported) {
+      //   return {
+      //     initialized: false,
+      //     error: 'NFC is not supported on this device'
+      //   };
+      // }
+      // 
+      // await NfcManager.start();
       
-      if (this.isSupported) {
-        // Start the NFC manager
-        await NfcManager.start();
-        this.isInitialized = true;
-        
-        // Check if NFC is enabled (Android only)
-        if (Platform.OS === 'android') {
-          this.isEnabled = await NfcManager.isEnabled();
-        } else {
-          // On iOS we assume it's enabled if supported
-          this.isEnabled = true;
-        }
-        
+      // For simulation, assume we have support based on platform
+      this.hasSupport = Platform.OS === 'android' || (Platform.OS === 'ios' && Platform.Version >= '13.0');
+      
+      if (!this.hasSupport) {
         return {
-          supported: this.isSupported,
-          initialized: this.isInitialized,
-          enabled: this.isEnabled
-        };
-      } else {
-        return {
-          supported: false,
           initialized: false,
-          enabled: false,
           error: 'NFC is not supported on this device'
         };
       }
+      
+      this.isInitialized = true;
+      
+      return {
+        initialized: true
+      };
     } catch (error) {
       console.error('Error initializing NFC manager:', error);
       return {
-        supported: false,
         initialized: false,
-        enabled: false,
         error: `Error initializing NFC: ${error}`
       };
     }
   }
-
-  // Clean up NFC resources
-  async cleanup() {
-    if (this.isInitialized) {
-      await NfcManager.cancelTechnologyRequest();
-      await NfcManager.unregisterTagEvent();
-      this.isInitialized = false;
-    }
-  }
-
-  // Start reading NFC tags
-  async startReading(onTagDiscovered: (tag: any) => void) {
-    if (!this.isSupported || !this.isInitialized || !this.isEnabled) {
-      throw new Error('NFC is not available or not initialized');
-    }
-
+  
+  // Start NFC reading with callback
+  async startReading(onTagDiscovered?: (tag: any) => Promise<void>): Promise<boolean> {
     try {
-      // Register for tag discoveries
-      await NfcManager.registerTagEvent();
+      if (!this.isInitialized || !this.hasSupport) {
+        console.warn('NFC manager not initialized or not supported');
+        return false;
+      }
       
-      // Set up the listener for when a tag is discovered
-      NfcManager.setEventListener(NfcManager.EventType.DiscoverTag, (tag: any) => {
-        onTagDiscovered(tag);
-      });
+      if (this.isScanStarted) {
+        console.warn('NFC reading already active');
+        return true;
+      }
+      
+      // Set callback if provided
+      if (onTagDiscovered) {
+        this.onTagDiscoveredCallback = onTagDiscovered;
+      }
+      
+      // In a real app, this would register for NFC tag discovery:
+      // this.currentSession = {
+      //   id: `session-${Date.now()}`,
+      //   active: true,
+      //   startTime: Date.now()
+      // };
+      // 
+      // if (Platform.OS === 'android') {
+      //   NfcManager.setEventListener(NfcEvents.DiscoverTag, (tag) => {
+      //     this.handleTagDiscovered(tag);
+      //   });
+      //   await NfcManager.registerTagEvent();
+      // } else if (Platform.OS === 'ios') {
+      //   await NfcManager.requestTechnology(NfcTech.Ndef);
+      // }
+      
+      // For simulation, create a mock session
+      this.currentSession = {
+        id: `session-${Date.now()}`,
+        active: true,
+        startTime: Date.now()
+      };
+      
+      this.isScanStarted = true;
+      
+      // For simulation, periodically generate mock tag discoveries
+      this.simulateTagDiscovery();
       
       return true;
     } catch (error) {
       console.error('Error starting NFC reading:', error);
-      throw error;
+      this.cleanupSession();
+      return false;
     }
   }
-
-  // Stop reading NFC tags
-  async stopReading() {
-    if (this.isInitialized) {
-      try {
-        await NfcManager.unregisterTagEvent();
-        NfcManager.setEventListener(NfcManager.EventType.DiscoverTag, null);
-        return true;
-      } catch (error) {
-        console.error('Error stopping NFC reading:', error);
-        throw error;
-      }
-    }
-    return false;
-  }
-
-  // Write user data to NFC tag
-  async writeProfileToTag(userId: number, username: string) {
-    if (!this.isSupported || !this.isInitialized || !this.isEnabled) {
-      throw new Error('NFC is not available or not initialized');
-    }
-
+  
+  // Stop NFC reading
+  async stopReading(): Promise<boolean> {
     try {
-      // Request NFC technology
-      await NfcManager.requestTechnology(NfcTech.Ndef);
-      
-      // Create NDEF message with user data
-      const bytes = Ndef.encodeMessage([
-        Ndef.textRecord(JSON.stringify({ userId, username, app: 'Tralla' }))
-      ]);
-      
-      if (bytes) {
-        // Write NDEF message to the tag
-        await NfcManager.ndefHandler.writeNdefMessage(bytes);
-        await NfcManager.cancelTechnologyRequest();
+      if (!this.isInitialized || !this.isScanStarted) {
         return true;
-      } else {
-        throw new Error('Failed to encode NDEF message');
+      }
+      
+      // In a real app, this would stop listening for NFC tags:
+      // if (Platform.OS === 'android') {
+      //   NfcManager.setEventListener(NfcEvents.DiscoverTag, null);
+      //   await NfcManager.unregisterTagEvent();
+      // } else if (Platform.OS === 'ios') {
+      //   await NfcManager.cancelTechnologyRequest();
+      // }
+      
+      this.cleanupSession();
+      
+      return true;
+    } catch (error) {
+      console.error('Error stopping NFC reading:', error);
+      this.cleanupSession();
+      return false;
+    }
+  }
+  
+  // Read profile data from NFC tag
+  async readProfileFromTag(tag?: any): Promise<NfcProfile | null> {
+    try {
+      if (!this.isInitialized || !this.hasSupport) {
+        return null;
+      }
+      
+      // In a real app, this would read the NDEF message from the tag:
+      // const ndef = tag.ndefMessage[0];
+      // const payload = ndef.payload;
+      // const text = new TextDecoder().decode(payload.slice(3));
+      // return JSON.parse(text) as NfcProfile;
+      
+      // For simulation, generate a mock profile
+      const profile: NfcProfile = {
+        userId: Math.floor(Math.random() * 1000) + 1,
+        username: `user${Math.floor(Math.random() * 1000)}`,
+        displayName: this.getRandomName(),
+        avatarUrl: Math.random() > 0.5 ? `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? 'men' : 'women'}/${Math.floor(Math.random() * 100)}.jpg` : undefined,
+        timestamp: Date.now()
+      };
+      
+      return profile;
+    } catch (error) {
+      console.error('Error reading profile from NFC tag:', error);
+      return null;
+    }
+  }
+  
+  // Write profile data to NFC tag
+  async writeProfileToTag(profile: NfcProfile): Promise<boolean> {
+    try {
+      if (!this.isInitialized || !this.hasSupport) {
+        return false;
+      }
+      
+      // In a real app, this would write the profile to the tag:
+      // const bytes = new TextEncoder().encode(JSON.stringify(profile));
+      // const ndef = {
+      //   id: [1],
+      //   tnf: 3, // Well-known NDEF record
+      //   type: [84], // 'T' for TEXT record
+      //   payload: [2, 101, 110, ...bytes] // 'en' language code followed by the profile data
+      // };
+      // 
+      // if (Platform.OS === 'android') {
+      //   await NfcManager.requestTechnology(NfcTech.Ndef);
+      //   await NfcManager.ndefHandler.writeNdefMessage([ndef]);
+      //   await NfcManager.cancelTechnologyRequest();
+      // } else if (Platform.OS === 'ios') {
+      //   await NfcManager.requestTechnology(NfcTech.Ndef);
+      //   await NfcManager.ndefHandler.writeNdefMessage([ndef]);
+      //   await NfcManager.cancelTechnologyRequest();
+      // }
+      
+      console.log('Profile written to NFC tag:', profile);
+      
+      return true;
+    } catch (error) {
+      console.error('Error writing profile to NFC tag:', error);
+      return false;
+    }
+  }
+  
+  // Handle tag discovered event
+  private async handleTagDiscovered(tag: any): Promise<void> {
+    try {
+      if (!this.isInitialized || !this.isScanStarted) return;
+      
+      // Read profile data from the tag
+      const profile = await this.readProfileFromTag(tag);
+      
+      // Call the callback if available
+      if (profile && this.onTagDiscoveredCallback) {
+        await this.onTagDiscoveredCallback(tag);
       }
     } catch (error) {
-      console.error('Error writing to NFC tag:', error);
-      
-      // Make sure to cancel any pending tech request
-      NfcManager.cancelTechnologyRequest();
-      throw error;
+      console.error('Error handling NFC tag discovery:', error);
     }
   }
-
-  // Read user data from NFC tag
-  async readProfileFromTag() {
-    if (!this.isSupported || !this.isInitialized || !this.isEnabled) {
-      throw new Error('NFC is not available or not initialized');
-    }
-
-    try {
-      // Request NFC technology
-      await NfcManager.requestTechnology(NfcTech.Ndef);
-      
-      // Read NDEF message from the tag
-      const tag = await NfcManager.getTag();
-      await NfcManager.cancelTechnologyRequest();
-      
-      if (tag && tag.ndefMessage && tag.ndefMessage.length > 0) {
-        // Parse NDEF message
-        const ndefRecord = tag.ndefMessage[0];
-        const textData = Ndef.text.decodePayload(ndefRecord.payload);
-        
-        try {
-          // Parse JSON data from NDEF record
-          const userData = JSON.parse(textData);
-          return userData;
-        } catch (parseError) {
-          console.error('Error parsing NFC data:', parseError);
-          throw new Error('Invalid user data format');
-        }
-      } else {
-        throw new Error('No NDEF messages found on tag');
-      }
-    } catch (error) {
-      console.error('Error reading from NFC tag:', error);
-      
-      // Make sure to cancel any pending tech request
-      NfcManager.cancelTechnologyRequest();
-      throw error;
-    }
-  }
-
-  // Enable foreground dispatch for NFC reading (Android only)
-  async enableForegroundDispatch() {
-    if (Platform.OS === 'android' && this.isInitialized) {
-      try {
-        await NfcManager.setAnalogForegroundDispatch();
-        return true;
-      } catch (error) {
-        console.error('Error enabling foreground dispatch:', error);
-        throw error;
-      }
-    }
-    return false;
-  }
-
-  // Disable foreground dispatch for NFC reading (Android only)
-  async disableForegroundDispatch() {
-    if (Platform.OS === 'android' && this.isInitialized) {
-      try {
-        await NfcManager.disableForegroundDispatch();
-        return true;
-      } catch (error) {
-        console.error('Error disabling foreground dispatch:', error);
-        throw error;
-      }
-    }
-    return false;
-  }
-
-  // Check if NFC is supported and available
-  async isNfcAvailable() {
-    if (!this.isInitialized) {
-      await this.init();
-    }
-    
+  
+  // Generate a mock NFC tag for development
+  private generateMockTag(): any {
+    // Mock NFC tag structure
     return {
-      supported: this.isSupported,
-      enabled: this.isEnabled
+      id: Array.from({ length: 8 }, () => Math.floor(Math.random() * 256)),
+      techTypes: ['android.nfc.tech.Ndef', 'android.nfc.tech.NdefFormatable'],
+      maxSize: 137,
+      isWritable: true,
+      ndefMessage: [
+        {
+          id: [1],
+          tnf: 3, // Well-known record
+          type: [84], // 'T' for TEXT record
+          payload: new Uint8Array([2, 101, 110, ...Array.from({ length: 100 }, () => Math.floor(Math.random() * 256))])
+        }
+      ]
     };
+  }
+  
+  // Simulate tag discovery for development
+  private simulateTagDiscovery(): void {
+    // Call once immediately
+    setTimeout(() => {
+      const mockTag = this.generateMockTag();
+      this.handleTagDiscovered(mockTag);
+    }, 1000);
+    
+    // Then randomly throughout the session
+    const interval = setInterval(() => {
+      if (!this.isScanStarted) {
+        clearInterval(interval);
+        return;
+      }
+      
+      // Simulate occasional tag discoveries (33% chance every 10 seconds)
+      if (Math.random() < 0.33) {
+        const mockTag = this.generateMockTag();
+        this.handleTagDiscovered(mockTag);
+      }
+    }, 10000);
+  }
+  
+  // Clean up the current session
+  private cleanupSession(): void {
+    if (this.currentSession) {
+      this.currentSession.active = false;
+    }
+    this.currentSession = null;
+    this.isScanStarted = false;
+    this.onTagDiscoveredCallback = null;
+  }
+  
+  // Check if NFC reading is active
+  isReading(): boolean {
+    return this.isScanStarted;
+  }
+  
+  // Helper to generate random names for development
+  private getRandomName(): string {
+    const firstNames = [
+      'Alex', 'Jamie', 'Taylor', 'Jordan', 'Casey', 'Riley',
+      'Morgan', 'Drew', 'Hayden', 'Dakota', 'Avery', 'Quinn'
+    ];
+    
+    const lastNames = [
+      'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia',
+      'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez'
+    ];
+    
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+    
+    return `${firstName} ${lastName}`;
+  }
+  
+  // Clean up resources
+  cleanup(): void {
+    this.stopReading();
+    this.isInitialized = false;
+    this.hasSupport = false;
+    this.isScanStarted = false;
+    this.currentSession = null;
+    this.onTagDiscoveredCallback = null;
   }
 }
 
 // Create and export a singleton instance
-export const nfcManager = new NfcHandler();
+export const nfcManager = new NfcManagerClass();
 
 export default nfcManager;

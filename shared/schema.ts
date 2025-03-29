@@ -257,3 +257,101 @@ export const insertGiftSuggestionSchema = createInsertSchema(giftSuggestions).pi
 
 export type InsertGiftSuggestion = z.infer<typeof insertGiftSuggestionSchema>;
 export type GiftSuggestion = typeof giftSuggestions.$inferSelect;
+
+// Payment methods 
+export const paymentMethods = pgTable("payment_methods", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  type: text("type").notNull(), // stripe, upi, etc
+  token: text("token").notNull(), // Token or payment method ID from the payment provider
+  last4: text("last4"), // Last 4 digits of card if applicable
+  expiryMonth: integer("expiry_month"), // Expiry month if card
+  expiryYear: integer("expiry_year"), // Expiry year if card
+  brand: text("brand"), // Card brand if applicable (visa, mastercard, etc)
+  isDefault: boolean("is_default").default(false),
+  upiId: text("upi_id"), // For UPI payments
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPaymentMethodSchema = createInsertSchema(paymentMethods).pick({
+  userId: true,
+  type: true,
+  token: true,
+  last4: true,
+  expiryMonth: true,
+  expiryYear: true,
+  brand: true,
+  isDefault: true,
+  upiId: true,
+});
+
+export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
+export type PaymentMethod = typeof paymentMethods.$inferSelect;
+
+// Transactions
+export const transactions = pgTable("transactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  amount: doublePrecision("amount").notNull(),
+  currency: text("currency").default("USD"),
+  description: text("description").notNull(),
+  status: text("status").notNull(), // pending, completed, failed
+  paymentMethodId: integer("payment_method_id").references(() => paymentMethods.id),
+  expenseId: integer("expense_id").references(() => expenses.id),
+  giftSuggestionId: integer("gift_suggestion_id").references(() => giftSuggestions.id),
+  paymentIntentId: text("payment_intent_id"), // Stripe payment intent ID
+  stripeCustomerId: text("stripe_customer_id"), // Stripe customer ID
+  metadata: jsonb("metadata").$type<Record<string, any>>(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTransactionSchema = createInsertSchema(transactions).pick({
+  userId: true,
+  amount: true,
+  currency: true,
+  description: true,
+  status: true,
+  paymentMethodId: true,
+  expenseId: true,
+  giftSuggestionId: true,
+  paymentIntentId: true,
+  stripeCustomerId: true,
+  metadata: true,
+});
+
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+export type Transaction = typeof transactions.$inferSelect;
+
+// Gift orders
+export const giftOrders = pgTable("gift_orders", {
+  id: serial("id").primaryKey(),
+  buyerId: integer("buyer_id").notNull().references(() => users.id),
+  recipientId: integer("recipient_id").notNull().references(() => users.id),
+  giftSuggestionId: integer("gift_suggestion_id").references(() => giftSuggestions.id),
+  transactionId: integer("transaction_id").references(() => transactions.id),
+  status: text("status").notNull(), // pending, ordered, shipped, delivered
+  trackingInfo: text("tracking_info"),
+  deliveryAddress: jsonb("delivery_address").$type<{
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+  }>(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertGiftOrderSchema = createInsertSchema(giftOrders).pick({
+  buyerId: true,
+  recipientId: true,
+  giftSuggestionId: true,
+  transactionId: true,
+  status: true,
+  trackingInfo: true,
+  deliveryAddress: true,
+});
+
+export type InsertGiftOrder = z.infer<typeof insertGiftOrderSchema>;
+export type GiftOrder = typeof giftOrders.$inferSelect;
