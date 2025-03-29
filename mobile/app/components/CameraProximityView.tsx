@@ -4,615 +4,671 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
   Image,
-  SafeAreaView,
   Modal,
-  FlatList,
-  Dimensions
+  Dimensions,
+  Alert
 } from 'react-native';
-// These imports would work once the packages are installed
-// import { Camera, CameraType } from 'expo-camera';
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 
-import proximityManager, { NearbyUser } from '../utils/proximityManager';
+import proximityManager, { ProximityMethod, NearbyUser } from '../utils/proximityManager';
+import cameraManager, { DetectedFace } from '../utils/cameraManager';
 
-// This component would be imported from expo-camera
-const CameraView = ({ children }: { children: React.ReactNode }) => (
-  <View style={styles.camera}>
-    {/* This would be a real Camera component */}
-    <View style={styles.mockCamera}>
-      <Text style={styles.mockCameraText}>Camera Preview</Text>
-    </View>
-    {children}
-  </View>
-);
+const { width } = Dimensions.get('window');
 
-interface Props {
-  userId: number;
-  onClose: () => void;
-  onUserSelect?: (user: NearbyUser) => void;
-}
-
-const CameraProximityView: React.FC<Props> = ({ userId, onClose, onUserSelect }) => {
+// Component to show camera-based proximity detection
+const CameraProximityView: React.FC<{
+  userId: any;
+  onClose: any;
+  onUserSelect: any;
+}> = ({ userId, onClose, onUserSelect }) => {
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const [nearbyUsers, setNearbyUsers] = useState<NearbyUser[]>([]);
-  const [activeCamera, setActiveCamera] = useState<'front' | 'back'>('front');
-  const [isDetecting, setIsDetecting] = useState(false);
-  const [showUserList, setShowUserList] = useState(false);
-  const [flash, setFlash] = useState<'on' | 'off' | 'auto'>('off');
-  const [lastPhotoUri, setLastPhotoUri] = useState<string | null>(null);
-  const [showPhoto, setShowPhoto] = useState(false);
-
-  // Start detection when component mounts
+  const [selectedUser, setSelectedUser] = useState<NearbyUser | null>(null);
+  const [showUserDetail, setShowUserDetail] = useState<boolean>(false);
+  const [cameraInitialized, setCameraInitialized] = useState<boolean>(false);
+  const [detectedFaces, setDetectedFaces] = useState<DetectedFace[]>([]);
+  
+  // Initialize proximity detection on component mount
   useEffect(() => {
-    startDetection();
-
-    // Cleanup when component unmounts
+    async function setupDetection() {
+      try {
+        setIsLoading(true);
+        
+        // Initialize camera specifically for this view
+        const cameraResult = await cameraManager.init();
+        setCameraInitialized(cameraResult.initialized);
+        
+        // Set callback for user updates
+        proximityManager.onUsersUpdateCallback = (users: any) => {
+          setNearbyUsers(users);
+        };
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error setting up camera detection:', error);
+        proximityManager.onUsersUpdateCallback = null;
+        setIsLoading(false);
+      }
+    }
+    
+    setupDetection();
+    
+    // Cleanup on unmount
     return () => {
-      stopDetection();
+      proximityManager.onUsersUpdateCallback = null;
+      if (isCameraActive) {
+        cameraManager.stopFaceDetection();
+        setIsCameraActive(false);
+      }
     };
   }, []);
-
-  // Set up the nearby users callback
-  useEffect(() => {
-    proximityManager.setOnNearbyUsersChangedCallback((users) => {
-      setNearbyUsers(users);
-    });
-
-    return () => {
-      proximityManager.setOnNearbyUsersChangedCallback(null);
-    };
-  }, []);
-
-  // Start proximity detection
-  const startDetection = async () => {
-    try {
-      // Initialize with user ID and custom settings for camera focus
-      await proximityManager.init(userId, {
-        locationEnabled: true,
-        nfcEnabled: true,
-        cameraEnabled: true,
-        cameraRadius: 15, // 15 meters equivalent in camera distance units
-        refreshInterval: 5000, // 5 seconds
-      });
-
+  
+  // Start/stop camera detection
+  const toggleCamera = async () => {
+    if (isCameraActive) {
+      // Stop detection
+      cameraManager.stopFaceDetection();
+      setIsCameraActive(false);
+      setDetectedFaces([]);
+    } else {
       // Start detection
-      const started = await proximityManager.startDetection();
-      setIsDetecting(started);
-    } catch (error) {
-      console.error('Failed to start detection:', error);
-      setIsDetecting(false);
+      const success = cameraManager.startFaceDetection((faces) => {
+        setDetectedFaces(faces);
+        
+        // For each face detected, check if there's a match
+        faces.forEach(face => {
+          if (face.userId) {
+            console.log(`Detected user with ID: ${face.userId}`);
+          }
+        });
+      });
+      
+      setIsCameraActive(success);
     }
   };
-
-  // Stop proximity detection
-  const stopDetection = () => {
-    proximityManager.cleanup();
-    setIsDetecting(false);
-  };
-
-  // Toggle camera between front and back
-  const toggleCameraType = () => {
-    setActiveCamera((current) => (current === 'back' ? 'front' : 'back'));
-  };
-
-  // Toggle flash mode
-  const toggleFlash = () => {
-    setFlash((current) => {
-      if (current === 'off') return 'on';
-      if (current === 'on') return 'auto';
-      return 'off';
-    });
-  };
-
-  // Take a picture
+  
+  // Take a picture to try identifying people
   const takePicture = async () => {
     try {
-      const photoUri = await proximityManager.takePicture();
-      if (photoUri) {
-        setLastPhotoUri(photoUri);
-        setShowPhoto(true);
-      }
+      // In a real app, this would capture an image and analyze it
+      Alert.alert('Taking Picture', 'This would capture and analyze faces in a real app');
+      
+      // Simulate detection after photo by triggering a manual detection
+      proximityManager.takePicture();
     } catch (error) {
-      console.error('Failed to take picture:', error);
+      console.error('Error taking picture:', error);
+      Alert.alert('Error', 'Failed to take picture');
     }
   };
-
-  // Handle user selection
-  const handleUserSelect = (user: NearbyUser) => {
-    if (onUserSelect) {
-      onUserSelect(user);
-    }
-    setShowUserList(false);
+  
+  // View details of a user
+  const viewUserDetails = (user: NearbyUser) => {
+    setSelectedUser(user);
+    setShowUserDetail(true);
   };
-
-  // Render face detection overlays
-  const renderFaceOverlays = () => {
-    return nearbyUsers
-      .filter(user => user.detectionMethod === 'camera' || user.detectionMethod === 'multiple')
-      .filter(user => user.faceData)
-      .map(user => {
-        if (!user.faceData) return null;
-        
-        const { bounds } = user.faceData.face;
-        
-        return (
+  
+  // Create a badge for the detection method
+  const getMethodBadge = (methods: ProximityMethod[]) => {
+    // If camera is one of the methods, highlight it
+    const isCameraDetection = methods.includes(ProximityMethod.CAMERA);
+    const methodType = isCameraDetection ? 'camera' : methods[0];
+    
+    // Get facial data if available
+    const hasFaceData = isCameraDetection && selectedUser?.faceData;
+    
+    return {
+      label: isCameraDetection ? 'Camera' : methodType === 'nfc' ? 'NFC' : 'Location',
+      color: isCameraDetection ? '#e74c3c' : methodType === 'nfc' ? '#3498db' : '#2ecc71',
+      icon: isCameraDetection ? 'camera' : methodType === 'nfc' ? 'wifi' : 'map-marker-alt'
+    };
+  };
+  
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <MaterialIcons name="close" size={24} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Camera Proximity</Text>
+        <TouchableOpacity 
+          style={[styles.cameraButton, isCameraActive && styles.cameraActive]} 
+          onPress={toggleCamera}
+        >
+          <MaterialIcons 
+            name={isCameraActive ? "camera" : "camera-alt"} 
+            size={24} 
+            color={isCameraActive ? "#e74c3c" : "#fff"} 
+          />
+        </TouchableOpacity>
+      </View>
+      
+      {/* Status indicator */}
+      <View style={styles.statusBar}>
+        <Text style={styles.statusText}>
+          {isLoading ? 'Initializing...' : 
+           !cameraInitialized ? 'Camera not available' :
+           isCameraActive ? 'Camera active - detecting faces' : 
+           'Camera ready - tap camera icon to activate'}
+        </Text>
+      </View>
+      
+      {/* Camera control buttons */}
+      {cameraInitialized && (
+        <View style={styles.controlsContainer}>
           <TouchableOpacity 
-            key={user.id} 
-            style={[
-              styles.faceBox,
-              {
-                left: bounds.origin.x,
-                top: bounds.origin.y,
-                width: bounds.size.width,
-                height: bounds.size.height,
-              }
-            ]}
-            onPress={() => handleUserSelect(user)}
+            style={[styles.controlButton, isCameraActive && styles.activeButton]}
+            onPress={toggleCamera}
           >
-            <View style={styles.faceInfo}>
-              <Text style={styles.faceText}>{user.displayName}</Text>
-              <Text style={styles.faceDetailText}>
-                {Math.round((user.distance || 0) * 10) / 10}m
-              </Text>
-            </View>
+            <MaterialIcons 
+              name={isCameraActive ? "pause" : "play-arrow"} 
+              size={24} 
+              color="#fff" 
+            />
+            <Text style={styles.buttonText}>
+              {isCameraActive ? "Pause Detection" : "Start Detection"}
+            </Text>
           </TouchableOpacity>
-        );
-      });
-  };
-
-  // Render user list
-  const renderUserList = () => {
-    return (
+          
+          <TouchableOpacity 
+            style={styles.controlButton}
+            onPress={takePicture}
+          >
+            <MaterialIcons name="camera" size={24} color="#fff" />
+            <Text style={styles.buttonText}>Take Picture</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      
+      {/* Detected faces overlay */}
+      {isCameraActive && detectedFaces.length > 0 && (
+        <View style={styles.facesOverlay}>
+          <Text style={styles.facesTitle}>
+            Detected Faces: {detectedFaces.length}
+          </Text>
+          {detectedFaces.map((face, index) => (
+            <View 
+              key={`face-${index}-${face.id}`}
+              style={[
+                styles.faceBox,
+                {
+                  left: face.bounds.origin.x * (width / 300), // Scaling to screen
+                  top: face.bounds.origin.y * (width / 300),
+                  width: face.bounds.size.width * (width / 300),
+                  height: face.bounds.size.height * (width / 300),
+                  borderColor: face.userId ? '#e74c3c' : '#3498db'
+                }
+              ]}
+            >
+              {face.userId && (
+                <Text style={styles.faceLabel}>
+                  {face.displayName || `User ${face.userId}`}
+                </Text>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
+      
+      {/* Nearby users list */}
+      <ScrollView style={styles.usersList}>
+        <Text style={styles.sectionTitle}>
+          Nearby People {nearbyUsers.length > 0 ? `(${nearbyUsers.length})` : ''}
+        </Text>
+        
+        {nearbyUsers.length === 0 ? (
+          <View style={styles.emptyState}>
+            <FontAwesome5 name="user-friends" size={30} color="#ccc" />
+            <Text style={styles.emptyText}>
+              No one nearby. Try moving around or activating the camera.
+            </Text>
+          </View>
+        ) : (
+          nearbyUsers.map((item, index) => (
+            <TouchableOpacity 
+              key={`user-${item.userId}-${index}`} 
+              style={styles.userCard}
+              onPress={() => viewUserDetails(item)}
+            >
+              <View style={styles.userInfo}>
+                <Image 
+                  source={{ uri: item.avatarUrl || `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? 'men' : 'women'}/${index % 100}.jpg` }} 
+                  style={styles.avatar} 
+                />
+                <View style={styles.nameContainer}>
+                  <Text style={styles.userName}>
+                    {item.displayName}
+                  </Text>
+                  <Text style={styles.userHandle}>
+                    @{item.username}
+                  </Text>
+                  
+                  <View style={styles.detectionInfo}>
+                    {item.methods.map((method, i) => (
+                      <View key={`method-${i}`} style={[styles.methodBadge, { backgroundColor: method === ProximityMethod.CAMERA ? '#e74c3c' : method === ProximityMethod.NFC ? '#3498db' : '#2ecc71' }]}>
+                        <FontAwesome5 name={method === ProximityMethod.CAMERA ? 'camera' : method === ProximityMethod.NFC ? 'wifi' : 'map-marker-alt'} size={10} color="#fff" />
+                        <Text style={styles.methodText}>
+                          {method === ProximityMethod.CAMERA ? 'Camera' : method === ProximityMethod.NFC ? 'NFC' : 'Location'}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </View>
+              
+              <View style={styles.userMeta}>
+                <View style={styles.confidenceContainer}>
+                  <Text style={styles.confidenceText}>
+                    {Math.round(item.confidence)}%
+                  </Text>
+                  <View style={styles.confidenceBars}>
+                    <View 
+                      style={[
+                        styles.confidenceBar, 
+                        { 
+                          width: `${item.confidence}%`,
+                          backgroundColor: item.confidence > 80 ? '#2ecc71' : item.confidence > 50 ? '#f39c12' : '#e74c3c'
+                        }
+                      ]} 
+                    />
+                  </View>
+                </View>
+                
+                {item.distance !== undefined && (
+                  <Text style={styles.distance}>
+                    {item.distance < 10 ? 'Very Close' : `${Math.round(item.distance)}m away`}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+      </ScrollView>
+      
+      {/* User detail modal */}
       <Modal
-        visible={showUserList}
+        visible={showUserDetail}
         transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowUserList(false)}
+        animationType="fade"
+        onRequestClose={() => setShowUserDetail(false)}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nearby People</Text>
-              <TouchableOpacity onPress={() => setShowUserList(false)}>
-                <Ionicons name="close" size={24} color="#000" />
-              </TouchableOpacity>
-            </View>
-            
-            <FlatList
-              data={nearbyUsers}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity 
-                  style={styles.userItem}
-                  onPress={() => handleUserSelect(item)}
-                >
-                  <View style={styles.userAvatar}>
-                    {item.avatar ? (
-                      <Image source={{ uri: item.avatar }} style={styles.avatarImage} />
-                    ) : (
-                      <View style={[styles.avatarPlaceholder, { backgroundColor: getUserColor(item.id) }]}>
-                        <Text style={styles.avatarText}>
-                          {item.displayName.charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
-                    {item.detectionMethod === 'nfc' && (
-                      <View style={styles.methodBadge}>
-                        <Ionicons name="radio" size={12} color="#fff" />
-                      </View>
-                    )}
-                    {item.detectionMethod === 'camera' && (
-                      <View style={styles.methodBadge}>
-                        <Ionicons name="videocam" size={12} color="#fff" />
-                      </View>
-                    )}
-                    {item.detectionMethod === 'location' && (
-                      <View style={styles.methodBadge}>
-                        <Ionicons name="location" size={12} color="#fff" />
-                      </View>
-                    )}
-                    {item.detectionMethod === 'multiple' && (
-                      <View style={styles.methodBadge}>
-                        <Ionicons name="checkmark-circle" size={12} color="#fff" />
-                      </View>
-                    )}
-                  </View>
-                  
-                  <View style={styles.userInfo}>
-                    <Text style={styles.userName}>{item.displayName}</Text>
-                    <Text style={styles.userDetail}>
-                      {item.distance ? `${Math.round(item.distance * 10) / 10}m away` : 'Nearby'}
-                    </Text>
-                    <View style={styles.confidenceBar}>
-                      <View 
-                        style={[
-                          styles.confidenceFill, 
-                          { width: `${item.confidence * 100}%` }
-                        ]} 
-                      />
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              )}
-              contentContainerStyle={styles.userList}
-            />
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
-  // Render photo preview
-  const renderPhotoPreview = () => {
-    if (!lastPhotoUri) return null;
-    
-    return (
-      <Modal
-        visible={showPhoto}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowPhoto(false)}
-      >
-        <View style={styles.photoModal}>
-          <Image 
-            source={{ uri: lastPhotoUri }} 
-            style={styles.photoPreview}
-            resizeMode="contain"
-          />
-          <View style={styles.photoControls}>
             <TouchableOpacity 
-              style={styles.photoButton}
-              onPress={() => setShowPhoto(false)}
+              style={styles.modalClose}
+              onPress={() => setShowUserDetail(false)}
             >
-              <Ionicons name="close-circle" size={32} color="#fff" />
-              <Text style={styles.photoButtonText}>Discard</Text>
+              <MaterialIcons name="close" size={24} color="#333" />
             </TouchableOpacity>
             
-            <TouchableOpacity 
-              style={styles.photoButton}
-              onPress={() => {
-                // In a real app, you would save the photo or use it
-                setShowPhoto(false);
-              }}
-            >
-              <Ionicons name="checkmark-circle" size={32} color="#fff" />
-              <Text style={styles.photoButtonText}>Use Photo</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
-  // Generate consistent colors for user avatars
-  const getUserColor = (id: number): string => {
-    const colors = [
-      '#FF5252', '#FF4081', '#E040FB', '#7C4DFF',
-      '#536DFE', '#448AFF', '#40C4FF', '#18FFFF',
-      '#64FFDA', '#69F0AE', '#B2FF59', '#EEFF41',
-      '#FFFF00', '#FFD740', '#FFAB40', '#FF6E40'
-    ];
-    
-    return colors[id % colors.length];
-  };
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <CameraView>
-        {/* Camera overlay with face detection */}
-        <View style={styles.overlay}>
-          {renderFaceOverlays()}
-        </View>
-        
-        {/* Camera controls */}
-        <View style={styles.controls}>
-          <View style={styles.topControls}>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Ionicons name="chevron-back" size={28} color="#fff" />
-            </TouchableOpacity>
-            
-            <View style={styles.topRightControls}>
-              <TouchableOpacity 
-                style={styles.controlButton}
-                onPress={toggleFlash}
-              >
-                <Ionicons 
-                  name={
-                    flash === 'off' ? 'flash-off' : 
-                    flash === 'on' ? 'flash' : 'flash-outline'
-                  } 
-                  size={24} 
-                  color="#fff" 
+            {selectedUser && (
+              <View style={styles.userDetailContent}>
+                <Image 
+                  source={{ uri: selectedUser.avatarUrl || `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? 'men' : 'women'}/${Math.floor(Math.random() * 100)}.jpg` }} 
+                  style={styles.detailAvatar} 
                 />
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.controlButton, { marginLeft: 20 }]}
-                onPress={() => setShowUserList(true)}
-              >
-                <View style={styles.badgeContainer}>
-                  <Ionicons name="people" size={24} color="#fff" />
-                  {nearbyUsers.length > 0 && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{nearbyUsers.length}</Text>
-                    </View>
-                  )}
+                
+                <Text style={styles.detailName}>{selectedUser.displayName}</Text>
+                <Text style={styles.detailUsername}>@{selectedUser.username}</Text>
+                
+                <View style={styles.detailMethodsContainer}>
+                  {selectedUser.methods.map((method, i) => {
+                    const badge = getMethodBadge([method]);
+                    return (
+                      <View 
+                        key={`detail-method-${i}`} 
+                        style={[styles.detailMethod, { backgroundColor: badge.color }]}
+                      >
+                        <FontAwesome5 name={badge.icon} size={14} color="#fff" />
+                        <Text style={styles.detailMethodText}>{badge.label}</Text>
+                      </View>
+                    );
+                  })}
                 </View>
-              </TouchableOpacity>
-            </View>
-          </View>
-          
-          <View style={styles.bottomControls}>
-            <View style={styles.captureContainer}>
-              <TouchableOpacity 
-                style={styles.flipCamera}
-                onPress={toggleCameraType}
-              >
-                <Ionicons name="camera-reverse" size={30} color="#fff" />
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.captureButton}
-                onPress={takePicture}
-              >
-                <View style={styles.captureButtonInner} />
-              </TouchableOpacity>
-              
-              <View style={{ width: 50 }} /> {/* Spacer to balance the layout */}
-            </View>
+                
+                <View style={styles.detailConfidence}>
+                  <Text style={styles.detailConfidenceText}>
+                    Recognition Confidence: {Math.round(selectedUser.confidence)}%
+                  </Text>
+                  <View style={styles.detailConfidenceBar}>
+                    <View 
+                      style={[
+                        styles.detailConfidenceFill,
+                        {
+                          width: `${selectedUser.confidence}%`,
+                          backgroundColor: selectedUser.confidence > 80 ? '#2ecc71' : selectedUser.confidence > 50 ? '#f39c12' : '#e74c3c'
+                        }
+                      ]}
+                    />
+                  </View>
+                </View>
+                
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity 
+                    style={styles.actionButton}
+                    onPress={() => {
+                      setShowUserDetail(false);
+                      onUserSelect(selectedUser);
+                    }}
+                  >
+                    <MaterialIcons name="chat" size={20} color="#fff" />
+                    <Text style={styles.actionButtonText}>Message</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity style={styles.actionButton}>
+                    <MaterialIcons name="person-add" size={20} color="#fff" />
+                    <Text style={styles.actionButtonText}>Add Friend</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
         </View>
-      </CameraView>
-      
-      {/* User list modal */}
-      {renderUserList()}
-      
-      {/* Photo preview modal */}
-      {renderPhotoPreview()}
-    </SafeAreaView>
+      </Modal>
+    </View>
   );
 };
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#121212',
   },
-  camera: {
-    flex: 1,
-  },
-  mockCamera: {
-    flex: 1,
-    backgroundColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mockCameraText: {
-    color: '#fff',
-    fontSize: 18,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  controls: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'space-between',
-  },
-  topControls: {
+  header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
-    paddingTop: 40,
+    padding: 16,
+    backgroundColor: '#1e1e1e',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
   },
   closeButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 8,
   },
-  topRightControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  controlButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeContainer: {
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#FF4081',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 12,
+  headerTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
+    color: '#fff',
   },
-  bottomControls: {
-    padding: 20,
-    paddingBottom: 40,
+  cameraButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#333',
   },
-  captureContainer: {
+  cameraActive: {
+    backgroundColor: '#e74c3c30',
+  },
+  statusBar: {
+    padding: 8,
+    backgroundColor: '#282828',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#ccc',
+    textAlign: 'center',
+  },
+  controlsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#282828',
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
   },
-  captureButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    justifyContent: 'center',
+  controlButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#444',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
   },
-  captureButtonInner: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: '#fff',
+  activeButton: {
+    backgroundColor: '#e74c3c',
   },
-  flipCamera: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  buttonText: {
+    color: '#fff',
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  facesOverlay: {
+    position: 'absolute',
+    top: 170,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    pointerEvents: 'none',
+  },
+  facesTitle: {
+    fontSize: 14,
+    color: '#fff',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    padding: 4,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginLeft: 16,
+    marginBottom: 8,
   },
   faceBox: {
     position: 'absolute',
     borderWidth: 2,
-    borderColor: '#00E676',
-    borderRadius: 2,
-  },
-  faceInfo: {
-    position: 'absolute',
-    top: -45,
-    left: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    padding: 5,
-    borderRadius: 5,
-    width: 100,
-  },
-  faceText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  faceDetailText: {
-    color: '#00E676',
-    fontSize: 10,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 4,
     justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    minHeight: screenHeight * 0.6,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  userList: {
-    padding: 10,
-  },
-  userItem: {
-    flexDirection: 'row',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
     alignItems: 'center',
   },
-  userAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 15,
-    position: 'relative',
-  },
-  avatarImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  avatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
+  faceLabel: {
+    fontSize: 10,
     color: '#fff',
+    backgroundColor: 'rgba(231, 76, 60, 0.7)',
+    padding: 2,
+    borderRadius: 2,
+    marginBottom: -14,
+    maxWidth: 100,
+    textAlign: 'center',
+  },
+  usersList: {
+    flex: 1,
+    padding: 16,
+  },
+  sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 16,
   },
-  methodBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#FF4081',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
+  emptyState: {
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    color: '#ccc',
+    textAlign: 'center',
+    marginTop: 16,
+    fontSize: 16,
+  },
+  userCard: {
+    backgroundColor: '#282828',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
   },
   userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#444',
+  },
+  nameContainer: {
+    marginLeft: 16,
     flex: 1,
   },
   userName: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 2,
   },
-  userDetail: {
+  userHandle: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 2,
+    color: '#aaa',
+    marginBottom: 8,
+  },
+  detectionInfo: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  methodBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginRight: 8,
+    marginBottom: 4,
+  },
+  methodText: {
+    color: '#fff',
+    fontSize: 10,
+    marginLeft: 4,
+  },
+  userMeta: {
+    marginTop: 16,
+  },
+  confidenceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  confidenceText: {
+    color: '#fff',
+    fontSize: 14,
+    width: 40,
+  },
+  confidenceBars: {
+    flex: 1,
+    height: 6,
+    backgroundColor: '#444',
+    borderRadius: 3,
+    overflow: 'hidden',
   },
   confidenceBar: {
-    marginTop: 5,
-    height: 4,
-    backgroundColor: '#eee',
-    borderRadius: 2,
-    width: '100%',
+    height: 6,
+    borderRadius: 3,
   },
-  confidenceFill: {
-    height: 4,
-    backgroundColor: '#00E676',
-    borderRadius: 2,
+  distance: {
+    color: '#aaa',
+    fontSize: 14,
+    marginTop: 8,
   },
-  photoModal: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  photoPreview: {
-    width: screenWidth,
-    height: screenHeight - 100,
+  modalContent: {
+    backgroundColor: '#222',
+    borderRadius: 12,
+    padding: 24,
+    width: '85%',
+    maxHeight: '80%',
   },
-  photoControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '80%',
+  modalClose: {
     position: 'absolute',
-    bottom: 40,
+    top: 16,
+    right: 16,
+    zIndex: 1,
   },
-  photoButton: {
+  userDetailContent: {
     alignItems: 'center',
   },
-  photoButtonText: {
+  detailAvatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 16,
+  },
+  detailName: {
+    fontSize: 22,
+    fontWeight: 'bold',
     color: '#fff',
-    marginTop: 5,
+    marginBottom: 4,
+  },
+  detailUsername: {
+    fontSize: 16,
+    color: '#aaa',
+    marginBottom: 16,
+  },
+  detailMethodsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  detailMethod: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    margin: 4,
+  },
+  detailMethodText: {
+    color: '#fff',
+    fontSize: 14,
+    marginLeft: 6,
+  },
+  detailConfidence: {
+    width: '100%',
+    marginVertical: 16,
+  },
+  detailConfidenceText: {
+    color: '#ccc',
+    fontSize: 14,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  detailConfidenceBar: {
+    height: 8,
+    backgroundColor: '#444',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  detailConfidenceFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: 24,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3498db',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  actionButtonText: {
+    color: '#fff',
+    marginLeft: 8,
+    fontWeight: '500',
   },
 });
 

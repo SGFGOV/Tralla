@@ -1,17 +1,20 @@
 import { Platform } from 'react-native';
-import { postData } from './api';
-import { locationManager, type LocationData } from './locationManager';
-import { nfcManager, type NfcProfile } from './nfcManager';
-import { cameraManager, type DetectedFace } from './cameraManager';
+import locationManager, { LocationData } from './locationManager';
+import nfcManager, { NfcProfile } from './nfcManager';
+import cameraManager, { DetectedFace } from './cameraManager';
+import { fetchData, postData } from './api';
 
-// Enum for proximity detection methods
+// Define __DEV__ for development mode
+declare const __DEV__: boolean;
+
+// Enum of available proximity detection methods
 export enum ProximityMethod {
   LOCATION = 'location',
   NFC = 'nfc',
   CAMERA = 'camera'
 }
 
-// Interface for proximity settings
+// Interface for user proximity settings
 export interface ProximitySettings {
   userId: number;
   maxDistance: number; // in meters
@@ -34,9 +37,10 @@ export interface NearbyUser {
   methods: ProximityMethod[];
   confidence: number; // 0-100 percentage of confidence in detection
   online: boolean;
+  faceData?: any; // Face recognition data for the user
 }
 
-// Class to handle proximity detection and management
+// Class to manage proximity detection across all methods
 class ProximityManager {
   private isInitialized: boolean = false;
   private locationEnabled: boolean = false;
@@ -45,28 +49,44 @@ class ProximityManager {
   private userId: number | null = null;
   private settings: ProximitySettings | null = null;
   private nearbyUsers: Map<number, NearbyUser> = new Map();
-  private onUserDetectedCallback: ((user: NearbyUser) => void) | null = null;
-  private onUsersUpdateCallback: ((users: NearbyUser[]) => void) | null = null;
+  // Callbacks for user detection and updates
+  public onUserDetectedCallback: ((user: NearbyUser) => void) | null = null;
+  public onUsersUpdateCallback: ((users: NearbyUser[]) => void) | null = null;
   
-  // Initialize the proximity manager with all detection methods
+  // Initialize proximity manager
   async init(userId: number): Promise<{ initialized: boolean; error?: string }> {
     try {
       this.userId = userId;
       
-      // Initialize location manager
-      const locationResult = await locationManager.init(userId);
-      this.locationEnabled = locationResult.initialized;
-      
-      // Initialize NFC manager
-      const nfcResult = await nfcManager.init();
-      this.nfcEnabled = nfcResult.initialized;
-      
-      // Initialize camera manager
-      const cameraResult = await cameraManager.init();
-      this.cameraEnabled = cameraResult.initialized;
-      
-      // Load settings
+      // Load user settings
       await this.loadSettings();
+      
+      // Initialize location manager if enabled
+      if (this.settings?.enableLocation) {
+        const locationResult = await locationManager.init(userId);
+        this.locationEnabled = locationResult.initialized;
+        if (!locationResult.initialized) {
+          console.warn("Location initialization failed:", locationResult.error);
+        }
+      }
+      
+      // Initialize NFC manager if enabled
+      if (this.settings?.enableNfc) {
+        const nfcResult = await nfcManager.init();
+        this.nfcEnabled = nfcResult.initialized;
+        if (!nfcResult.initialized) {
+          console.warn("NFC initialization failed:", nfcResult.error);
+        }
+      }
+      
+      // Initialize camera manager if enabled
+      if (this.settings?.enableCamera) {
+        const cameraResult = await cameraManager.init();
+        this.cameraEnabled = cameraResult.initialized;
+        if (!cameraResult.initialized) {
+          console.warn("Camera initialization failed:", cameraResult.error);
+        }
+      }
       
       this.isInitialized = true;
       
@@ -84,85 +104,99 @@ class ProximityManager {
   
   // Start proximity detection with callbacks
   async startDetection(onUserDetected?: (user: NearbyUser) => void, onUsersUpdate?: (users: NearbyUser[]) => void): Promise<boolean> {
-    if (!this.isInitialized) {
-      console.warn('Proximity manager not initialized');
+    try {
+      if (!this.isInitialized || !this.userId) {
+        console.warn('Proximity manager not initialized');
+        return false;
+      }
+      
+      // Set callbacks if provided
+      if (onUserDetected) {
+        this.onUserDetectedCallback = onUserDetected;
+      }
+      
+      if (onUsersUpdate) {
+        this.onUsersUpdateCallback = onUsersUpdate;
+      }
+      
+      // Start location tracking if enabled
+      if (this.locationEnabled && this.settings?.enableLocation) {
+        await locationManager.startTracking(this.handleLocationUpdate.bind(this));
+      }
+      
+      // Start NFC reading if enabled
+      if (this.nfcEnabled && this.settings?.enableNfc) {
+        await nfcManager.startReading(this.handleNfcTagDiscovered.bind(this));
+      }
+      
+      // Start camera face detection if enabled
+      if (this.cameraEnabled && this.settings?.enableCamera) {
+        cameraManager.startFaceDetection(this.handleFacesDetected.bind(this));
+      }
+      
+      // In development mode, simulate nearby users
+      if (__DEV__) {
+        // Generate mock nearby users for each enabled method
+        const currentLocation = locationManager.getLocationData() || undefined;
+        
+        if (this.locationEnabled) {
+          const mockLocationUsers = this.generateMockNearbyUsers(3, ProximityMethod.LOCATION, currentLocation);
+          mockLocationUsers.forEach(user => this.addOrUpdateNearbyUser(user));
+        }
+        
+        if (this.nfcEnabled) {
+          const mockNfcUsers = this.generateMockNearbyUsers(2, ProximityMethod.NFC);
+          mockNfcUsers.forEach(user => this.addOrUpdateNearbyUser(user));
+        }
+        
+        if (this.cameraEnabled) {
+          const mockCameraUsers = this.generateMockNearbyUsers(2, ProximityMethod.CAMERA);
+          mockCameraUsers.forEach(user => this.addOrUpdateNearbyUser(user));
+        }
+        
+        // Notify listeners of initial mock users
+        this.notifyListeners();
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error starting proximity detection:', error);
       return false;
     }
-    
-    // Set callbacks if provided
-    if (onUserDetected) {
-      this.onUserDetectedCallback = onUserDetected;
-    }
-    
-    if (onUsersUpdate) {
-      this.onUsersUpdateCallback = onUsersUpdate;
-    }
-    
-    // Start location tracking if enabled
-    if (this.settings?.enableLocation && this.locationEnabled) {
-      await locationManager.startTracking(this.handleLocationUpdate.bind(this));
-    }
-    
-    // Start NFC scanning if enabled
-    if (this.settings?.enableNfc && this.nfcEnabled) {
-      await nfcManager.startReading(this.handleNfcTagDiscovered.bind(this));
-    }
-    
-    // Start camera detection if enabled
-    if (this.settings?.enableCamera && this.cameraEnabled) {
-      cameraManager.startFaceDetection(this.handleFacesDetected.bind(this));
-    }
-    
-    // For simulation in development, generate some mock users
-    if (__DEV__) {
-      // Generate some nearby users by different methods
-      const mockLocationUsers = this.generateMockNearbyUsers(3, ProximityMethod.LOCATION, locationManager.getLocationData());
-      mockLocationUsers.forEach(user => this.addOrUpdateNearbyUser(user));
-      
-      const mockNfcUsers = this.generateMockNearbyUsers(1, ProximityMethod.NFC);
-      mockNfcUsers.forEach(user => this.addOrUpdateNearbyUser(user));
-      
-      const mockCameraUsers = this.generateMockNearbyUsers(2, ProximityMethod.CAMERA);
-      mockCameraUsers.forEach(user => this.addOrUpdateNearbyUser(user));
-      
-      // Notify listeners
-      this.notifyListeners();
-    }
-    
-    return true;
   }
   
-  // Stop all proximity detection methods
+  // Stop proximity detection
   stopDetection(): void {
-    // Stop location tracking
-    if (this.locationEnabled) {
-      locationManager.stopTracking();
+    try {
+      if (this.locationEnabled) {
+        locationManager.stopTracking();
+      }
+      
+      if (this.nfcEnabled) {
+        nfcManager.stopReading();
+      }
+      
+      if (this.cameraEnabled) {
+        cameraManager.stopFaceDetection();
+      }
+      
+      this.nearbyUsers.clear();
+      this.onUserDetectedCallback = null;
+      this.onUsersUpdateCallback = null;
+    } catch (error) {
+      console.error('Error stopping proximity detection:', error);
     }
-    
-    // Stop NFC scanning
-    if (this.nfcEnabled) {
-      nfcManager.stopReading();
-    }
-    
-    // Stop camera detection
-    if (this.cameraEnabled) {
-      cameraManager.stopFaceDetection();
-    }
-    
-    // Clear callbacks
-    this.onUserDetectedCallback = null;
-    this.onUsersUpdateCallback = null;
   }
   
-  // Handle location updates
+  // Handle location update from location manager
   private async handleLocationUpdate(location: LocationData): Promise<void> {
     try {
-      if (!this.settings) return;
+      if (!this.isInitialized || !this.userId) return;
       
-      // Fetch nearby users from server using current location
+      // Fetch nearby users from the server
       const nearbyUsers = await this.fetchNearbyUsersByLocation(location);
       
-      // Update nearby users
+      // Add or update nearby users
       nearbyUsers.forEach(user => {
         this.addOrUpdateNearbyUser(user);
       });
@@ -174,14 +208,16 @@ class ProximityManager {
     }
   }
   
-  // Handle NFC tag discoveries
+  // Handle NFC tag discovered
   private async handleNfcTagDiscovered(tag: any): Promise<void> {
     try {
-      // Read profile from NFC tag
+      if (!this.isInitialized || !this.userId) return;
+      
+      // Get profile from NFC tag
       const profile = await nfcManager.readProfileFromTag(tag);
       
       if (profile) {
-        // Create nearby user from NFC profile
+        // Create nearby user from profile
         const nearbyUser: NearbyUser = {
           userId: profile.userId,
           username: profile.username,
@@ -189,11 +225,11 @@ class ProximityManager {
           avatarUrl: profile.avatarUrl,
           lastSeen: new Date(),
           methods: [ProximityMethod.NFC],
-          confidence: 100, // NFC provides high confidence
+          confidence: 95, // High confidence for NFC
           online: true
         };
         
-        // Update nearby users
+        // Add or update user
         this.addOrUpdateNearbyUser(nearbyUser);
         
         // Notify listeners
@@ -204,154 +240,198 @@ class ProximityManager {
     }
   }
   
-  // Handle faces detected by camera
+  // Handle faces detected from camera manager
   private handleFacesDetected(faces: DetectedFace[]): void {
     try {
-      // Process only faces with identified users
-      faces.filter(face => face.userId).forEach(face => {
-        if (!face.userId || !face.username || !face.displayName) return;
-        
-        // Create nearby user from detected face
-        const nearbyUser: NearbyUser = {
-          userId: face.userId,
-          username: face.username,
-          displayName: face.displayName,
-          lastSeen: new Date(),
-          methods: [ProximityMethod.CAMERA],
-          confidence: face.faceMatchConfidence || 70, // Use face match confidence if available
-          online: true
-        };
-        
-        // Update nearby users
-        this.addOrUpdateNearbyUser(nearbyUser);
+      if (!this.isInitialized || !this.userId) return;
+      
+      // Process each detected face
+      faces.forEach(face => {
+        if (face.userId) {
+          // Create nearby user from face data
+          const nearbyUser: NearbyUser = {
+            userId: face.userId,
+            username: face.username || `user${face.userId}`,
+            displayName: face.displayName || `User ${face.userId}`,
+            lastSeen: new Date(),
+            methods: [ProximityMethod.CAMERA],
+            confidence: face.faceMatchConfidence || 70, // Use face match confidence or default
+            online: true,
+            faceData: face.faceData
+          };
+          
+          // Add or update user
+          this.addOrUpdateNearbyUser(nearbyUser);
+        }
       });
       
       // Notify listeners
-      if (faces.filter(face => face.userId).length > 0) {
-        this.notifyListeners();
-      }
+      this.notifyListeners();
     } catch (error) {
-      console.error('Error handling faces detection:', error);
+      console.error('Error handling faces detected:', error);
     }
   }
   
-  // Add or update a nearby user in the map
+  // Add or update a nearby user in the collection
   private addOrUpdateNearbyUser(user: NearbyUser): void {
     const existingUser = this.nearbyUsers.get(user.userId);
     
     if (existingUser) {
-      // Update existing user
-      existingUser.lastSeen = user.lastSeen;
+      // User already exists, update and merge
+      const updatedUser: NearbyUser = {
+        ...existingUser,
+        lastSeen: user.lastSeen,
+        online: user.online
+      };
       
-      // Add new detection method if not already present
-      if (user.methods && user.methods.length > 0) {
-        for (const method of user.methods) {
-          if (!existingUser.methods.includes(method)) {
-            existingUser.methods.push(method);
-          }
-        }
+      // Merge methods if new method is detected
+      if (!updatedUser.methods.includes(user.methods[0])) {
+        updatedUser.methods = [...updatedUser.methods, ...user.methods];
       }
       
       // Update distance if provided
       if (user.distance !== undefined) {
-        existingUser.distance = user.distance;
+        updatedUser.distance = user.distance;
       }
       
       // Update confidence based on multiple detection methods
-      if (existingUser.methods.length > 1) {
-        // Increase confidence if detected by multiple methods
-        existingUser.confidence = Math.min(100, existingUser.confidence + 10);
+      if (updatedUser.methods.length > 1) {
+        // Increase confidence when detected through multiple methods
+        updatedUser.confidence = Math.min(
+          Math.max(existingUser.confidence, user.confidence) + 
+          (5 * updatedUser.methods.length), // +5% per method
+          98 // Cap at 98%
+        );
       } else {
-        // Use the new confidence if higher
-        existingUser.confidence = Math.max(existingUser.confidence, user.confidence);
+        // For single method, use the higher confidence
+        updatedUser.confidence = Math.max(existingUser.confidence, user.confidence);
       }
       
-      // Update online status
-      existingUser.online = user.online;
+      this.nearbyUsers.set(user.userId, updatedUser);
+      
+      // Check if this is a significant update to notify about
+      const isSignificantUpdate = 
+        existingUser.methods.length !== updatedUser.methods.length ||
+        existingUser.confidence < updatedUser.confidence - 10 ||
+        existingUser.online !== updatedUser.online;
+      
+      if (isSignificantUpdate && this.onUserDetectedCallback) {
+        this.onUserDetectedCallback(updatedUser);
+      }
     } else {
-      // Add new user
+      // New user discovered
       this.nearbyUsers.set(user.userId, user);
       
-      // Notify about new user detection
+      // Fetch additional user data (avatar, etc.) from server
+      this.fetchUserProfile(user.userId);
+      
+      // Notify about new user
       if (this.onUserDetectedCallback) {
         this.onUserDetectedCallback(user);
       }
     }
   }
   
-  // Calculate confidence based on distance
+  // Calculate location-based confidence
   private calculateLocationConfidence(distance: number | null): number {
-    if (!distance) return 70;
+    if (distance === null) return 70; // Default confidence
     
-    if (distance < 5) return 90; // Very close
-    if (distance < 20) return 85; // Close
-    if (distance < 50) return 80; // Nearby
-    if (distance < 100) return 75; // Medium distance
-    if (distance < 200) return 70; // Far
-    return 60; // Very far
+    // Calculate confidence based on distance
+    // Closer users have higher confidence
+    const maxDistance = this.settings?.maxDistance || 100;
+    
+    if (distance <= 5) {
+      return 90; // Very close (0-5m)
+    } else if (distance <= 15) {
+      return 80; // Close (5-15m)
+    } else if (distance <= 50) {
+      return 70; // Medium distance (15-50m)
+    } else {
+      // Linear scaling for farther distances
+      return Math.max(50, 70 - ((distance - 50) / (maxDistance - 50)) * 20);
+    }
   }
   
-  // Fetch user profile from server
+  // Fetch additional user profile data from server
   private async fetchUserProfile(userId: number): Promise<void> {
     try {
-      const userProfile = await postData(`/users/${userId}`, {});
+      if (!this.isInitialized) return;
       
-      // Update user in nearby users if found
+      // In a real app, this would fetch the user profile from the server
+      // const userProfile = await fetchData(`/users/${userId}`);
+      
+      // For simulation, fetch mock profile
+      const userProfile = await this.fetchMockUserProfile(userId);
+      
+      // Update user if still in nearby list
       const existingUser = this.nearbyUsers.get(userId);
-      if (existingUser && userProfile) {
-        existingUser.username = userProfile.username;
-        existingUser.displayName = userProfile.displayName;
-        existingUser.avatarUrl = userProfile.avatarUrl;
-        existingUser.online = userProfile.online;
+      if (existingUser) {
+        this.nearbyUsers.set(userId, {
+          ...existingUser,
+          username: userProfile.username || existingUser.username,
+          displayName: userProfile.displayName || existingUser.displayName,
+          avatarUrl: existingUser.avatarUrl || `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? 'men' : 'women'}/${Math.floor(Math.random() * 100)}.jpg`
+        });
+        
+        // Notify listeners
+        this.notifyListeners();
       }
     } catch (error) {
-      console.error(`Error fetching user profile for ID ${userId}:`, error);
+      console.error(`Error fetching user profile for ${userId}:`, error);
     }
   }
   
   // Fetch nearby users by location from server
   private async fetchNearbyUsersByLocation(location: LocationData): Promise<NearbyUser[]> {
     try {
-      if (!this.userId || !this.settings) return [];
+      if (!this.isInitialized || !this.userId) return [];
       
       // In a real app, this would fetch nearby users from the server:
-      // const response = await postData('/users/nearby', {
-      //   userId: this.userId,
-      //   latitude: location.latitude,
-      //   longitude: location.longitude,
-      //   maxDistance: this.settings.maxDistance
-      // });
-      // return response.users;
+      // const response = await fetchData<any[]>(`/users/${this.userId}/nearby?latitude=${location.latitude}&longitude=${location.longitude}`);
+      // 
+      // const nearbyUsers: NearbyUser[] = response.map(user => ({
+      //   userId: user.id,
+      //   username: user.username,
+      //   displayName: user.displayName,
+      //   avatarUrl: user.avatarUrl,
+      //   distance: user.distance,
+      //   lastSeen: new Date(),
+      //   methods: [ProximityMethod.LOCATION],
+      //   confidence: this.calculateLocationConfidence(user.distance),
+      //   online: user.online
+      // }));
       
-      // For simulation in development, generate some random nearby users
-      return this.generateMockNearbyUsers(5, ProximityMethod.LOCATION, location);
+      // For simulation, generate 0-3 random nearby users
+      const count = Math.floor(Math.random() * 4);
+      const users = this.generateMockNearbyUsers(count, ProximityMethod.LOCATION, location);
+      
+      return users;
     } catch (error) {
       console.error('Error fetching nearby users by location:', error);
       return [];
     }
   }
   
-  // Notify listeners about updated nearby users
+  // Notify listeners of nearby users update
   private notifyListeners(): void {
     if (this.onUsersUpdateCallback) {
-      const users = Array.from(this.nearbyUsers.values());
-      this.onUsersUpdateCallback(users);
+      const usersList = Array.from(this.nearbyUsers.values());
+      this.onUsersUpdateCallback(usersList);
     }
   }
   
-  // Load user proximity settings from server
+  // Load user proximity settings
   private async loadSettings(): Promise<void> {
     try {
       if (!this.userId) return;
       
-      // In a real app, this would load settings from the server:
-      // const settings = await postData(`/users/${this.userId}/proximity-settings`, {});
-      // this.settings = settings;
+      // In a real app, this would fetch settings from the server:
+      // const settings = await fetchData<ProximitySettings>(`/users/${this.userId}/proximity-settings`);
       
       // For simulation, use default settings
       this.settings = {
         userId: this.userId,
-        maxDistance: 200, // meters
+        maxDistance: 100, // 100 meters
         enableLocation: true,
         enableNfc: true,
         enableCamera: true,
@@ -362,13 +442,13 @@ class ProximityManager {
     } catch (error) {
       console.error('Error loading proximity settings:', error);
       
-      // Create default settings
+      // Set default settings if error
       if (this.userId) {
         this.settings = {
           userId: this.userId,
-          maxDistance: 200, // meters
+          maxDistance: 100,
           enableLocation: true,
-          enableNfc: true,
+          enableNfc: Platform.OS === 'android',
           enableCamera: true,
           shareProfile: true,
           shareLocation: true,
@@ -378,12 +458,14 @@ class ProximityManager {
     }
   }
   
-  // Update proximity settings
+  // Update user proximity settings
   async updateSettings(settings: Partial<ProximitySettings>): Promise<boolean> {
     try {
-      if (!this.userId || !this.settings) return false;
+      if (!this.isInitialized || !this.userId || !this.settings) {
+        return false;
+      }
       
-      // Update settings
+      // Update local settings
       this.settings = {
         ...this.settings,
         ...settings
@@ -392,33 +474,35 @@ class ProximityManager {
       // In a real app, this would save settings to the server:
       // await postData(`/users/${this.userId}/proximity-settings`, this.settings);
       
-      // Update detection methods based on new settings
-      // Location
-      if (this.settings.enableLocation && this.locationEnabled) {
-        if (!locationManager.isLocationEnabled()) {
+      // Stop/start methods based on new settings
+      if (settings.enableLocation !== undefined && this.locationEnabled !== settings.enableLocation) {
+        if (settings.enableLocation) {
           await locationManager.init(this.userId);
           await locationManager.startTracking(this.handleLocationUpdate.bind(this));
+        } else {
+          locationManager.stopTracking();
         }
-      } else if (locationManager.isLocationEnabled()) {
-        locationManager.stopTracking();
+        this.locationEnabled = settings.enableLocation;
       }
       
-      // NFC
-      if (this.settings.enableNfc && this.nfcEnabled) {
-        if (!nfcManager.isReading()) {
+      if (settings.enableNfc !== undefined && this.nfcEnabled !== settings.enableNfc) {
+        if (settings.enableNfc) {
+          await nfcManager.init();
           await nfcManager.startReading(this.handleNfcTagDiscovered.bind(this));
+        } else {
+          await nfcManager.stopReading();
         }
-      } else if (nfcManager.isReading()) {
-        await nfcManager.stopReading();
+        this.nfcEnabled = settings.enableNfc;
       }
       
-      // Camera
-      if (this.settings.enableCamera && this.cameraEnabled) {
-        if (!cameraManager.isFaceDetectionEnabled()) {
+      if (settings.enableCamera !== undefined && this.cameraEnabled !== settings.enableCamera) {
+        if (settings.enableCamera) {
+          await cameraManager.init();
           cameraManager.startFaceDetection(this.handleFacesDetected.bind(this));
+        } else {
+          cameraManager.stopFaceDetection();
         }
-      } else if (cameraManager.isFaceDetectionEnabled()) {
-        cameraManager.stopFaceDetection();
+        this.cameraEnabled = settings.enableCamera;
       }
       
       return true;
@@ -428,19 +512,26 @@ class ProximityManager {
     }
   }
   
-  // Register a user's face
+  // Register face data for the current user
   async registerFace(faceData: any): Promise<boolean> {
     try {
-      if (!this.userId) return false;
+      if (!this.isInitialized || !this.userId) {
+        return false;
+      }
       
-      // Get mock user data for simulation
-      const userProfile = await this.fetchMockUserProfile(this.userId);
+      if (!this.cameraEnabled) {
+        await cameraManager.init();
+        this.cameraEnabled = true;
+      }
+      
+      // Get user display name and username
+      const user = await this.fetchMockUserProfile(this.userId);
       
       // Register face with camera manager
       return await cameraManager.registerFace(
         this.userId,
-        userProfile.username,
-        userProfile.displayName,
+        user.username,
+        user.displayName,
         faceData
       );
     } catch (error) {
@@ -449,12 +540,19 @@ class ProximityManager {
     }
   }
   
-  // Register an NFC tag with user profile
+  // Register NFC tag for the user
   async registerNfcTag(username: string, displayName: string): Promise<boolean> {
     try {
-      if (!this.userId) return false;
+      if (!this.isInitialized || !this.userId) {
+        return false;
+      }
       
-      // Create profile data
+      if (!this.nfcEnabled) {
+        await nfcManager.init();
+        this.nfcEnabled = true;
+      }
+      
+      // Create profile to write to tag
       const profile: NfcProfile = {
         userId: this.userId,
         username,
@@ -470,59 +568,67 @@ class ProximityManager {
     }
   }
   
-  // Get the list of nearby users
+  // Get all nearby users
   getNearbyUsers(): NearbyUser[] {
     return Array.from(this.nearbyUsers.values());
   }
   
-  // Get user proximity settings
+  // Get current settings
   getSettings(): ProximitySettings | null {
     return this.settings;
   }
   
-  // Check if a specific proximity method is active
+  // Take a picture for face detection
+  async takePicture(): Promise<any> {
+    if (!this.cameraEnabled) {
+      await cameraManager.init();
+      this.cameraEnabled = true;
+    }
+    return await cameraManager.takePicture();
+  }
+  
+  // Check if a detection method is active
   isMethodActive(method: ProximityMethod): boolean {
     switch (method) {
       case ProximityMethod.LOCATION:
-        return this.locationEnabled && !!this.settings?.enableLocation;
+        return this.locationEnabled;
       case ProximityMethod.NFC:
-        return this.nfcEnabled && !!this.settings?.enableNFC;
+        return this.nfcEnabled;
       case ProximityMethod.CAMERA:
-        return this.cameraEnabled && !!this.settings?.enableCamera;
+        return this.cameraEnabled;
       default:
         return false;
     }
   }
   
   // Check if proximity manager is initialized
-  isInitialized(): boolean {
+  getInitializedStatus(): boolean {
     return this.isInitialized;
   }
   
-  // Helper method to fetch mock user profile
+  // Helper to fetch mock user profile
   private async fetchMockUserProfile(userId: number): Promise<{ username: string, displayName: string }> {
-    // In a real app, this would fetch the user profile from the server
-    // For simulation, create a mock profile
+    // In development, generate a random name
     return {
       username: `user${userId}`,
       displayName: this.getRandomName()
     };
   }
   
-  // Generate mock nearby users for development
+  // Helper to generate mock nearby users for development
   private generateMockNearbyUsers(count: number, method: ProximityMethod, location?: LocationData): NearbyUser[] {
     const users: NearbyUser[] = [];
     
     for (let i = 0; i < count; i++) {
       const userId = Math.floor(Math.random() * 1000) + 1;
       
-      // Generate a distance if using location method
-      let distance: number | undefined = undefined;
+      let distance: number | undefined;
+      
       if (method === ProximityMethod.LOCATION && location) {
-        distance = Math.random() * this.settings?.maxDistance || 200;
+        // Generate a random distance (5-100m)
+        distance = Math.floor(Math.random() * 95) + 5;
       }
       
-      // Create a user object
       const user: NearbyUser = {
         userId,
         username: `user${userId}`,
@@ -530,11 +636,12 @@ class ProximityManager {
         distance,
         lastSeen: new Date(),
         methods: [method],
-        confidence: method === ProximityMethod.NFC ? 100 : 
-                   method === ProximityMethod.CAMERA ? 
-                   (Math.random() * 30 + 60) : // 60-90% for camera
-                   this.calculateLocationConfidence(distance || null), // Location confidence
-        online: Math.random() > 0.2 // 80% chance to be online
+        confidence: method === ProximityMethod.LOCATION 
+          ? this.calculateLocationConfidence(distance || null)
+          : method === ProximityMethod.NFC 
+            ? 95 
+            : 75, // Different confidence levels by method
+        online: Math.random() > 0.2 // 80% chance of being online
       };
       
       users.push(user);
@@ -577,8 +684,10 @@ class ProximityManager {
       cameraManager.cleanup();
     }
     
-    this.nearbyUsers.clear();
     this.isInitialized = false;
+    this.userId = null;
+    this.settings = null;
+    this.nearbyUsers.clear();
   }
 }
 

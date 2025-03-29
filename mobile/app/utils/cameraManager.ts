@@ -22,6 +22,7 @@ export interface DetectedFace {
   userId?: number;
   username?: string;
   displayName?: string;
+  faceData?: any; // Raw face data for recognition
 }
 
 // Interface for face detection options
@@ -150,6 +151,7 @@ class CameraManager {
           face.userId = userId;
           face.username = knownFace.username;
           face.displayName = knownFace.displayName;
+          face.faceData = knownFace.faceData;
           face.faceMatchConfidence = Math.random() * 30 + 60; // 60-90% confidence
           break;
         }
@@ -177,6 +179,7 @@ class CameraManager {
           face.userId = userId;
           face.username = knownFace.username;
           face.displayName = knownFace.displayName;
+          face.faceData = knownFace.faceData;
           face.faceMatchConfidence = Math.random() * 20 + 70; // 70-90% confidence
           
           // Update the face in the map
@@ -325,6 +328,26 @@ class CameraManager {
   // Check if face detection is active
   isFaceDetectionEnabled(): boolean {
     return this.isFaceDetectionActive;
+  }
+  
+  // Take a picture with camera
+  async takePicture(): Promise<any> {
+    if (!this.isInitialized || !this.hasCameraPermission) {
+      console.warn('Camera not initialized or permission denied');
+      return null;
+    }
+    
+    // In a real app, this would call camera.takePictureAsync()
+    // For simulation, return a mock photo result
+    return {
+      uri: `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? 'men' : 'women'}/${Math.floor(Math.random() * 100)}.jpg`,
+      width: 1080,
+      height: 1920,
+      exif: {
+        orientation: 1,
+        timestamp: Date.now()
+      }
+    };
   }
   
   // Clean up resources
