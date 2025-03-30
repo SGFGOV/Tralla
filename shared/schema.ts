@@ -540,3 +540,36 @@ export const insertPrivacySettingSchema = createInsertSchema(privacySettings).pi
 
 export type InsertPrivacySetting = z.infer<typeof insertPrivacySettingSchema>;
 export type PrivacySetting = typeof privacySettings.$inferSelect;
+
+// Social media accounts table
+export const socialMediaAccounts = pgTable("social_media_accounts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  platform: text("platform").notNull(), // facebook, instagram, twitter, linkedin, etc.
+  username: text("username").notNull(),
+  displayName: text("display_name"),
+  profileUrl: text("profile_url"),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  tokenExpiry: timestamp("token_expiry"),
+  isVerified: boolean("is_verified").default(false),
+  isPublic: boolean("is_public").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSocialMediaAccountSchema = createInsertSchema(socialMediaAccounts).pick({
+  userId: true,
+  platform: true,
+  username: true,
+  displayName: true,
+  profileUrl: true,
+  accessToken: true,
+  refreshToken: true,
+  tokenExpiry: true,
+  isVerified: true,
+  isPublic: true,
+});
+
+export type InsertSocialMediaAccount = z.infer<typeof insertSocialMediaAccountSchema>;
+export type SocialMediaAccount = typeof socialMediaAccounts.$inferSelect;

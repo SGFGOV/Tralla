@@ -201,6 +201,28 @@ export interface IStorage {
   getNotificationPreferences(userId: number): Promise<NotificationPreference | undefined>;
   createNotificationPreferences(preferences: InsertNotificationPreference): Promise<NotificationPreference>;
   updateNotificationPreferences(userId: number, preferences: Partial<NotificationPreference>): Promise<NotificationPreference>;
+  
+  // Social media accounts
+  getSocialMediaAccount(id: number): Promise<SocialMediaAccount | undefined>;
+  getUserSocialMediaAccounts(userId: number): Promise<SocialMediaAccount[]>;
+  getSocialMediaAccountByPlatform(userId: number, platform: string): Promise<SocialMediaAccount | undefined>;
+  createSocialMediaAccount(account: InsertSocialMediaAccount): Promise<SocialMediaAccount>;
+  updateSocialMediaAccount(id: number, account: Partial<SocialMediaAccount>): Promise<SocialMediaAccount>;
+  deleteSocialMediaAccount(id: number): Promise<void>;
+  
+  // OAuth providers
+  findOrCreateUserByOAuth(
+    profile: {
+      id: string;
+      provider: string;
+      displayName?: string;
+      emails?: Array<{ value: string }>;
+      photos?: Array<{ value: string }>;
+      username?: string;
+    }, 
+    accessToken: string, 
+    refreshToken: string
+  ): Promise<User>;
 }
 
 export class MemStorage implements IStorage {
