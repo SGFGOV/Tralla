@@ -219,6 +219,12 @@ export class MemStorage implements IStorage {
   private paymentMethods: Map<number, PaymentMethod>;
   private transactions: Map<number, Transaction>;
   private giftOrders: Map<number, GiftOrder>;
+  private languagePreferences: Map<number, LanguagePreference>;
+  private privacySettings: Map<number, PrivacySetting>;
+  private voiceMessages: Map<number, VoiceMessage>;
+  private calendarEvents: Map<number, CalendarEvent>;
+  private notifications: Map<number, Notification>;
+  private notificationPreferences: Map<number, NotificationPreference>;
   
   private userIdCounter: number;
   private proximitySettingsIdCounter: number;
@@ -235,6 +241,12 @@ export class MemStorage implements IStorage {
   private paymentMethodIdCounter: number;
   private transactionIdCounter: number;
   private giftOrderIdCounter: number;
+  private languagePreferenceIdCounter: number;
+  private privacySettingIdCounter: number;
+  private voiceMessageIdCounter: number;
+  private calendarEventIdCounter: number;
+  private notificationIdCounter: number;
+  private notificationPreferenceIdCounter: number;
 
   constructor() {
     this.users = new Map();
@@ -252,6 +264,12 @@ export class MemStorage implements IStorage {
     this.paymentMethods = new Map();
     this.transactions = new Map();
     this.giftOrders = new Map();
+    this.languagePreferences = new Map();
+    this.privacySettings = new Map();
+    this.voiceMessages = new Map();
+    this.calendarEvents = new Map();
+    this.notifications = new Map();
+    this.notificationPreferences = new Map();
     
     this.userIdCounter = 1;
     this.proximitySettingsIdCounter = 1;
@@ -268,6 +286,12 @@ export class MemStorage implements IStorage {
     this.paymentMethodIdCounter = 1;
     this.transactionIdCounter = 1;
     this.giftOrderIdCounter = 1;
+    this.languagePreferenceIdCounter = 1;
+    this.privacySettingIdCounter = 1;
+    this.voiceMessageIdCounter = 1;
+    this.calendarEventIdCounter = 1;
+    this.notificationIdCounter = 1;
+    this.notificationPreferenceIdCounter = 1;
   }
 
   // User operations
@@ -976,6 +1000,332 @@ export class MemStorage implements IStorage {
 
   async deleteGiftSuggestion(id: number): Promise<void> {
     this.giftSuggestions.delete(id);
+  }
+
+  // Language preferences
+  async getLanguagePreferences(userId: number): Promise<LanguagePreference | undefined> {
+    return Array.from(this.languagePreferences.values()).find(
+      (preferences) => preferences.userId === userId
+    );
+  }
+
+  async createLanguagePreferences(preferences: InsertLanguagePreference): Promise<LanguagePreference> {
+    const id = this.languagePreferenceIdCounter++;
+    
+    const languagePreference: LanguagePreference = {
+      ...preferences,
+      id,
+    };
+    
+    this.languagePreferences.set(id, languagePreference);
+    
+    return languagePreference;
+  }
+
+  async updateLanguagePreferences(userId: number, preferencesData: Partial<LanguagePreference>): Promise<LanguagePreference> {
+    const preferences = await this.getLanguagePreferences(userId);
+    if (!preferences) {
+      throw new Error(`Language preferences for user ${userId} not found`);
+    }
+    
+    const updatedPreferences = { ...preferences, ...preferencesData };
+    this.languagePreferences.set(preferences.id, updatedPreferences);
+    
+    return updatedPreferences;
+  }
+  
+  // Privacy settings
+  async getPrivacySettings(userId: number): Promise<PrivacySetting | undefined> {
+    return Array.from(this.privacySettings.values()).find(
+      (settings) => settings.userId === userId
+    );
+  }
+
+  async createPrivacySettings(settings: InsertPrivacySetting): Promise<PrivacySetting> {
+    const id = this.privacySettingIdCounter++;
+    
+    const privacySetting: PrivacySetting = {
+      ...settings,
+      id,
+    };
+    
+    this.privacySettings.set(id, privacySetting);
+    
+    return privacySetting;
+  }
+
+  async updatePrivacySettings(userId: number, settingsData: Partial<PrivacySetting>): Promise<PrivacySetting> {
+    const settings = await this.getPrivacySettings(userId);
+    if (!settings) {
+      throw new Error(`Privacy settings for user ${userId} not found`);
+    }
+    
+    const updatedSettings = { ...settings, ...settingsData };
+    this.privacySettings.set(settings.id, updatedSettings);
+    
+    return updatedSettings;
+  }
+  
+  // Voice messages
+  async getVoiceMessage(id: number): Promise<VoiceMessage | undefined> {
+    return this.voiceMessages.get(id);
+  }
+
+  async getVoiceMessagesByMessage(messageId: number): Promise<VoiceMessage | undefined> {
+    return Array.from(this.voiceMessages.values()).find(
+      (vm) => vm.messageId === messageId
+    );
+  }
+
+  async getVoiceMessagesByGroupMessage(groupMessageId: number): Promise<VoiceMessage | undefined> {
+    return Array.from(this.voiceMessages.values()).find(
+      (vm) => vm.groupMessageId === groupMessageId
+    );
+  }
+
+  async createVoiceMessage(voiceMessage: InsertVoiceMessage): Promise<VoiceMessage> {
+    const id = this.voiceMessageIdCounter++;
+    
+    const newVoiceMessage: VoiceMessage = {
+      ...voiceMessage,
+      id,
+    };
+    
+    this.voiceMessages.set(id, newVoiceMessage);
+    
+    return newVoiceMessage;
+  }
+
+  async updateVoiceMessage(id: number, voiceMessageData: Partial<VoiceMessage>): Promise<VoiceMessage> {
+    const voiceMessage = await this.getVoiceMessage(id);
+    if (!voiceMessage) {
+      throw new Error(`Voice message with id ${id} not found`);
+    }
+    
+    const updatedVoiceMessage = { ...voiceMessage, ...voiceMessageData };
+    this.voiceMessages.set(id, updatedVoiceMessage);
+    
+    return updatedVoiceMessage;
+  }
+  
+  // Calendar events
+  async getCalendarEvent(id: number): Promise<CalendarEvent | undefined> {
+    return this.calendarEvents.get(id);
+  }
+
+  async getUserCalendarEvents(userId: number): Promise<CalendarEvent[]> {
+    return Array.from(this.calendarEvents.values())
+      .filter((event) => event.userId === userId)
+      .sort((a, b) => {
+        const dateA = a.startTime instanceof Date ? a.startTime : new Date(a.startTime);
+        const dateB = b.startTime instanceof Date ? b.startTime : new Date(b.startTime);
+        return dateA.getTime() - dateB.getTime();
+      });
+  }
+
+  async createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent> {
+    const id = this.calendarEventIdCounter++;
+    
+    const newEvent: CalendarEvent = {
+      ...event,
+      id,
+    };
+    
+    this.calendarEvents.set(id, newEvent);
+    
+    return newEvent;
+  }
+
+  async updateCalendarEvent(id: number, eventData: Partial<CalendarEvent>): Promise<CalendarEvent> {
+    const event = await this.getCalendarEvent(id);
+    if (!event) {
+      throw new Error(`Calendar event with id ${id} not found`);
+    }
+    
+    const updatedEvent = { ...event, ...eventData };
+    this.calendarEvents.set(id, updatedEvent);
+    
+    return updatedEvent;
+  }
+
+  async deleteCalendarEvent(id: number): Promise<void> {
+    this.calendarEvents.delete(id);
+  }
+  
+  // Notifications
+  async getNotification(id: number): Promise<Notification | undefined> {
+    return this.notifications.get(id);
+  }
+
+  async getUserNotifications(userId: number): Promise<Notification[]> {
+    return Array.from(this.notifications.values())
+      .filter((notification) => notification.userId === userId)
+      .sort((a, b) => {
+        const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+        const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+        return dateB.getTime() - dateA.getTime(); // Most recent first
+      });
+  }
+
+  async getUnreadNotificationsCount(userId: number): Promise<number> {
+    return Array.from(this.notifications.values())
+      .filter((notification) => notification.userId === userId && !notification.read)
+      .length;
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const id = this.notificationIdCounter++;
+    
+    const newNotification: Notification = {
+      ...notification,
+      id,
+      read: false,
+      createdAt: new Date(),
+    };
+    
+    this.notifications.set(id, newNotification);
+    
+    return newNotification;
+  }
+
+  async markNotificationAsRead(id: number): Promise<Notification> {
+    const notification = await this.getNotification(id);
+    if (!notification) {
+      throw new Error(`Notification with id ${id} not found`);
+    }
+    
+    const updatedNotification = { ...notification, read: true };
+    this.notifications.set(id, updatedNotification);
+    
+    return updatedNotification;
+  }
+
+  async deleteNotification(id: number): Promise<void> {
+    this.notifications.delete(id);
+  }
+  
+  // Notification preferences
+  async getNotificationPreferences(userId: number): Promise<NotificationPreference | undefined> {
+    return Array.from(this.notificationPreferences.values()).find(
+      (preferences) => preferences.userId === userId
+    );
+  }
+
+  async createNotificationPreferences(preferences: InsertNotificationPreference): Promise<NotificationPreference> {
+    const id = this.notificationPreferenceIdCounter++;
+    
+    const notificationPreference: NotificationPreference = {
+      ...preferences,
+      id,
+    };
+    
+    this.notificationPreferences.set(id, notificationPreference);
+    
+    return notificationPreference;
+  }
+
+  async updateNotificationPreferences(userId: number, preferencesData: Partial<NotificationPreference>): Promise<NotificationPreference> {
+    const preferences = await this.getNotificationPreferences(userId);
+    if (!preferences) {
+      throw new Error(`Notification preferences for user ${userId} not found`);
+    }
+    
+    const updatedPreferences = { ...preferences, ...preferencesData };
+    this.notificationPreferences.set(preferences.id, updatedPreferences);
+    
+    return updatedPreferences;
+  }
+  
+  // Payment methods
+  async getPaymentMethods(userId: number): Promise<PaymentMethod[]> {
+    return Array.from(this.paymentMethods.values())
+      .filter((method) => method.userId === userId);
+  }
+
+  async getPaymentMethod(id: number): Promise<PaymentMethod | undefined> {
+    return this.paymentMethods.get(id);
+  }
+
+  async createPaymentMethod(method: InsertPaymentMethod): Promise<PaymentMethod> {
+    const id = this.paymentMethodIdCounter++;
+    
+    const newMethod: PaymentMethod = {
+      ...method,
+      id,
+      default: method.default || false,
+    };
+    
+    this.paymentMethods.set(id, newMethod);
+    
+    // If this is set as default, unset default on other payment methods
+    if (newMethod.default) {
+      await this.unsetDefaultPaymentMethods(method.userId, id);
+    }
+    
+    return newMethod;
+  }
+
+  async updatePaymentMethod(id: number, methodData: Partial<PaymentMethod>): Promise<PaymentMethod> {
+    const method = await this.getPaymentMethod(id);
+    if (!method) {
+      throw new Error(`Payment method with id ${id} not found`);
+    }
+    
+    const updatedMethod = { ...method, ...methodData };
+    this.paymentMethods.set(id, updatedMethod);
+    
+    // If this is set as default, unset default on other payment methods
+    if (methodData.default) {
+      await this.unsetDefaultPaymentMethods(method.userId, id);
+    }
+    
+    return updatedMethod;
+  }
+
+  async deletePaymentMethod(id: number): Promise<void> {
+    const method = await this.getPaymentMethod(id);
+    if (method) {
+      this.paymentMethods.delete(id);
+      
+      // If this was the default method, set the next one as default
+      if (method.default) {
+        const methods = await this.getPaymentMethods(method.userId);
+        if (methods.length > 0) {
+          await this.setDefaultPaymentMethod(method.userId, methods[0].id);
+        }
+      }
+    }
+  }
+
+  private async unsetDefaultPaymentMethods(userId: number, exceptId: number): Promise<void> {
+    const methods = await this.getPaymentMethods(userId);
+    
+    for (const method of methods) {
+      if (method.id !== exceptId && method.default) {
+        method.default = false;
+        this.paymentMethods.set(method.id, method);
+      }
+    }
+  }
+
+  async setDefaultPaymentMethod(userId: number, paymentMethodId: number): Promise<PaymentMethod> {
+    const method = await this.getPaymentMethod(paymentMethodId);
+    if (!method) {
+      throw new Error(`Payment method with id ${paymentMethodId} not found`);
+    }
+    
+    if (method.userId !== userId) {
+      throw new Error(`Payment method does not belong to user ${userId}`);
+    }
+    
+    // Unset default for all other payment methods
+    await this.unsetDefaultPaymentMethods(userId, paymentMethodId);
+    
+    // Set this one as default
+    method.default = true;
+    this.paymentMethods.set(paymentMethodId, method);
+    
+    return method;
   }
 }
 

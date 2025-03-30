@@ -1218,5 +1218,215 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Calendar Events Routes
+  app.get('/api/users/:id/calendar-events', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+
+      const calendarEvents = await storage.getUserCalendarEvents(userId);
+      return res.status(200).json(calendarEvents);
+    } catch (error) {
+      console.error('Error getting calendar events:', error);
+      return res.status(500).json({ error: 'Failed to get calendar events' });
+    }
+  });
+
+  app.get('/api/calendar-events/:id', async (req: Request, res: Response) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      if (isNaN(eventId)) {
+        return res.status(400).json({ error: 'Invalid event ID' });
+      }
+
+      const calendarEvent = await storage.getCalendarEvent(eventId);
+      if (!calendarEvent) {
+        return res.status(404).json({ error: 'Calendar event not found' });
+      }
+      return res.status(200).json(calendarEvent);
+    } catch (error) {
+      console.error('Error getting calendar event:', error);
+      return res.status(500).json({ error: 'Failed to get calendar event' });
+    }
+  });
+
+  app.post('/api/calendar-events', async (req: Request, res: Response) => {
+    try {
+      const eventData = req.body;
+      const calendarEvent = await storage.createCalendarEvent(eventData);
+      return res.status(201).json(calendarEvent);
+    } catch (error) {
+      console.error('Error creating calendar event:', error);
+      return res.status(500).json({ error: 'Failed to create calendar event' });
+    }
+  });
+
+  app.patch('/api/calendar-events/:id', async (req: Request, res: Response) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      if (isNaN(eventId)) {
+        return res.status(400).json({ error: 'Invalid event ID' });
+      }
+
+      const eventData = req.body;
+      const updatedEvent = await storage.updateCalendarEvent(eventId, eventData);
+      return res.status(200).json(updatedEvent);
+    } catch (error) {
+      console.error('Error updating calendar event:', error);
+      return res.status(500).json({ error: 'Failed to update calendar event' });
+    }
+  });
+
+  app.delete('/api/calendar-events/:id', async (req: Request, res: Response) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      if (isNaN(eventId)) {
+        return res.status(400).json({ error: 'Invalid event ID' });
+      }
+
+      await storage.deleteCalendarEvent(eventId);
+      return res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting calendar event:', error);
+      return res.status(500).json({ error: 'Failed to delete calendar event' });
+    }
+  });
+
+  // Notification Routes
+  app.get('/api/users/:id/notifications', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+
+      const notifications = await storage.getUserNotifications(userId);
+      return res.status(200).json(notifications);
+    } catch (error) {
+      console.error('Error getting notifications:', error);
+      return res.status(500).json({ error: 'Failed to get notifications' });
+    }
+  });
+
+  app.get('/api/users/:id/notifications/unread-count', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+
+      const count = await storage.getUnreadNotificationsCount(userId);
+      return res.status(200).json({ count });
+    } catch (error) {
+      console.error('Error getting unread notifications count:', error);
+      return res.status(500).json({ error: 'Failed to get unread notifications count' });
+    }
+  });
+
+  app.post('/api/notifications', async (req: Request, res: Response) => {
+    try {
+      const notificationData = req.body;
+      const notification = await storage.createNotification(notificationData);
+      
+      // Send real-time notification to the user if they're connected
+      const userConnection = connections.find(conn => conn.userId === notification.userId);
+      if (userConnection && userConnection.socket.readyState === WebSocket.OPEN) {
+        userConnection.socket.send(JSON.stringify({
+          type: 'notification',
+          payload: notification
+        }));
+      }
+      
+      return res.status(201).json(notification);
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      return res.status(500).json({ error: 'Failed to create notification' });
+    }
+  });
+
+  app.patch('/api/notifications/:id/mark-as-read', async (req: Request, res: Response) => {
+    try {
+      const notificationId = parseInt(req.params.id);
+      if (isNaN(notificationId)) {
+        return res.status(400).json({ error: 'Invalid notification ID' });
+      }
+
+      const updatedNotification = await storage.markNotificationAsRead(notificationId);
+      return res.status(200).json(updatedNotification);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      return res.status(500).json({ error: 'Failed to mark notification as read' });
+    }
+  });
+
+  app.delete('/api/notifications/:id', async (req: Request, res: Response) => {
+    try {
+      const notificationId = parseInt(req.params.id);
+      if (isNaN(notificationId)) {
+        return res.status(400).json({ error: 'Invalid notification ID' });
+      }
+
+      await storage.deleteNotification(notificationId);
+      return res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      return res.status(500).json({ error: 'Failed to delete notification' });
+    }
+  });
+
+  // Notification Preferences Routes
+  app.get('/api/users/:id/notification-preferences', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+
+      const preferences = await storage.getNotificationPreferences(userId);
+      if (!preferences) {
+        return res.status(404).json({ error: 'Notification preferences not found' });
+      }
+      return res.status(200).json(preferences);
+    } catch (error) {
+      console.error('Error getting notification preferences:', error);
+      return res.status(500).json({ error: 'Failed to get notification preferences' });
+    }
+  });
+
+  app.post('/api/users/:id/notification-preferences', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+
+      // Ensure userId is set in the preferences
+      const preferencesData = { ...req.body, userId };
+      const preferences = await storage.createNotificationPreferences(preferencesData);
+      return res.status(201).json(preferences);
+    } catch (error) {
+      console.error('Error creating notification preferences:', error);
+      return res.status(500).json({ error: 'Failed to create notification preferences' });
+    }
+  });
+
+  app.patch('/api/users/:id/notification-preferences', async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid user ID' });
+      }
+
+      const preferencesData = req.body;
+      const updatedPreferences = await storage.updateNotificationPreferences(userId, preferencesData);
+      return res.status(200).json(updatedPreferences);
+    } catch (error) {
+      console.error('Error updating notification preferences:', error);
+      return res.status(500).json({ error: 'Failed to update notification preferences' });
+    }
+  });
+  
   return httpServer;
 }
