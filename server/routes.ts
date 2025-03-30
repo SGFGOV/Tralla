@@ -15,9 +15,14 @@ import {
   insertActivityParticipantSchema,
   insertFriendSchema,
   insertGiftSuggestionSchema,
+  insertLanguagePreferenceSchema,
+  insertNotificationSchema,
+  insertPrivacySettingSchema,
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
+import { bhashiniTranslation } from "./services/bhashiniTranslation";
+import { Language } from "@shared/i18n";
 
 interface WSMessage {
   type: string;
@@ -868,6 +873,346 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const suggestionId = Number(req.params.id);
       await storage.deleteGiftSuggestion(suggestionId);
       res.status(204).send();
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  // Translation routes
+  app.post('/api/translate', async (req: Request, res: Response) => {
+    try {
+      const { text, targetLanguage, sourceLanguage, autoDetect } = z.object({
+        text: z.string(),
+        targetLanguage: z.enum(Object.values(Language) as [string, ...string[]]),
+        sourceLanguage: z.enum(Object.values(Language) as [string, ...string[]]).optional(),
+        autoDetect: z.boolean().optional().default(true)
+      }).parse(req.body);
+      
+      // If empty text, return empty response
+      if (!text.trim()) {
+        return res.json({ translatedText: '', detectedLanguage: null });
+      }
+      
+      let sourceLang = sourceLanguage;
+      
+      // Detect source language if not provided and autoDetect is true
+      if (!sourceLang && autoDetect) {
+        sourceLang = await bhashiniTranslation.detectLanguage(text);
+      } else if (!sourceLang) {
+        sourceLang = Language.ENGLISH; // Default to English if not specified
+      }
+      
+      // Don't translate if source and target are the same
+      if (sourceLang === targetLanguage) {
+        return res.json({ 
+          translatedText: text, 
+          detectedLanguage: sourceLang 
+        });
+      }
+      
+      // Translate the text
+      const translatedText = await bhashiniTranslation.translate(
+        text, 
+        sourceLang as Language, 
+        targetLanguage as Language
+      );
+      
+      res.json({
+        translatedText,
+        detectedLanguage: sourceLang
+      });
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  app.post('/api/detect-language', async (req: Request, res: Response) => {
+    try {
+      const { text } = z.object({
+        text: z.string()
+      }).parse(req.body);
+      
+      if (!text.trim()) {
+        return res.json({ detectedLanguage: Language.ENGLISH });
+      }
+      
+      const detectedLanguage = await bhashiniTranslation.detectLanguage(text);
+      res.json({ detectedLanguage });
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  // Language preferences routes
+  app.get('/api/users/:id/language-preferences', async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.id);
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Get language preferences from storage
+      const preferences = await storage.getLanguagePreferences(userId);
+      
+      // If no preferences found, return default preferences
+      if (!preferences) {
+        return res.status(404).json({ 
+          error: 'Language preferences not found',
+          defaultPreferences: {
+            userId,
+            primaryLanguage: Language.ENGLISH,
+            secondaryLanguages: [],
+            autoTranslate: true,
+            autoDetectLanguage: true
+          }
+        });
+      }
+      
+      res.json(preferences);
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  app.post('/api/users/:id/language-preferences', async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.id);
+      const preferenceData = insertLanguagePreferenceSchema.parse(req.body);
+      
+      if (preferenceData.userId !== userId) {
+        return res.status(400).json({ error: 'User ID mismatch' });
+      }
+      
+      // Create language preferences
+      const preferences = await storage.createLanguagePreferences(preferenceData);
+      res.status(201).json(preferences);
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  app.patch('/api/users/:id/language-preferences', async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.id);
+      const updateData = req.body;
+      
+      // Update language preferences
+      const preferences = await storage.updateLanguagePreferences(userId, updateData);
+      res.json(preferences);
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  // Privacy settings routes
+  app.get('/api/users/:id/privacy-settings', async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.id);
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Get privacy settings from storage
+      const settings = await storage.getPrivacySettings(userId);
+      
+      // If no settings found, return default settings
+      if (!settings) {
+        return res.status(404).json({
+          error: 'Privacy settings not found',
+          defaultSettings: {
+            userId,
+            showOnlineStatus: true,
+            showLastActive: true,
+            allowFriendRequests: true,
+            allowProximityDiscovery: true,
+            allowLocationSharing: true,
+            showBirthday: true,
+            showEmail: false,
+            profileVisibility: 'public',
+            messagesFromNonFriends: true
+          }
+        });
+      }
+      
+      res.json(settings);
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  app.post('/api/users/:id/privacy-settings', async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.id);
+      const settingData = insertPrivacySettingSchema.parse(req.body);
+      
+      if (settingData.userId !== userId) {
+        return res.status(400).json({ error: 'User ID mismatch' });
+      }
+      
+      // Create privacy settings
+      const settings = await storage.createPrivacySettings(settingData);
+      res.status(201).json(settings);
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  app.patch('/api/users/:id/privacy-settings', async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.id);
+      const updateData = req.body;
+      
+      // Update privacy settings
+      const settings = await storage.updatePrivacySettings(userId, updateData);
+      res.json(settings);
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  // Voice message routes
+  app.post('/api/voice-messages', async (req: Request, res: Response) => {
+    try {
+      const { audio, duration, messageId, groupMessageId, senderId, receiverId, groupId } = z.object({
+        audio: z.string(), // Base64 encoded audio data
+        duration: z.number(),
+        messageId: z.number().optional(),
+        groupMessageId: z.number().optional(),
+        senderId: z.number(),
+        receiverId: z.number().optional(),
+        groupId: z.number().optional()
+      }).parse(req.body);
+      
+      // Generate a filename for the audio file
+      const filename = `voice_${Date.now()}_${Math.random().toString(36).substring(2, 15)}.webm`;
+      
+      // In a real app, we would store the audio file here:
+      // await fs.writeFile(`./uploads/voice/${filename}`, Buffer.from(audio, 'base64'));
+      
+      let newMessageId;
+      let newGroupMessageId;
+      
+      // Create a message if not provided
+      if (!messageId && receiverId) {
+        const newMessage = await storage.createMessage({
+          senderId,
+          receiverId,
+          content: `[Voice message - ${duration}s]`,
+          type: 'voice'
+        });
+        newMessageId = newMessage.id;
+        
+        // Send the message via WebSocket if the receiver is online
+        sendToUser(receiverId, {
+          type: 'new_message',
+          payload: {
+            ...newMessage,
+            isVoiceMessage: true
+          }
+        });
+      }
+      
+      // Create a group message if not provided
+      if (!groupMessageId && groupId) {
+        const newGroupMessage = await storage.createGroupMessage({
+          groupId,
+          senderId,
+          content: `[Voice message - ${duration}s]`,
+          type: 'voice'
+        });
+        newGroupMessageId = newGroupMessage.id;
+        
+        // Send the message to all group members
+        const groupMembers = await storage.getGroupMembers(groupId);
+        groupMembers.forEach((member) => {
+          if (member.userId !== senderId) {
+            sendToUser(member.userId, {
+              type: 'new_group_message',
+              payload: {
+                message: {
+                  ...newGroupMessage,
+                  isVoiceMessage: true
+                },
+                groupId
+              }
+            });
+          }
+        });
+      }
+      
+      // Create voice message record
+      const voiceMessage = await storage.createVoiceMessage({
+        messageId: messageId || newMessageId,
+        groupMessageId: groupMessageId || newGroupMessageId,
+        audioUrl: `/uploads/voice/${filename}`,
+        duration,
+        transcription: null,
+        transcriptionLanguage: null
+      });
+      
+      res.status(201).json(voiceMessage);
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  // Transcribe voice message route
+  app.post('/api/voice-messages/:id/transcribe', async (req: Request, res: Response) => {
+    try {
+      const voiceMessageId = Number(req.params.id);
+      const { targetLanguage } = z.object({
+        targetLanguage: z.enum(Object.values(Language) as [string, ...string[]])
+      }).parse(req.body);
+      
+      const voiceMessage = await storage.getVoiceMessage(voiceMessageId);
+      if (!voiceMessage) {
+        return res.status(404).json({ error: 'Voice message not found' });
+      }
+      
+      // In a real application, we would:
+      // 1. Use a speech-to-text service to transcribe the audio
+      // 2. Store the transcription in the database
+      // 3. Optionally translate the transcription to the target language
+      
+      // For now, simulate a transcription
+      const simulatedTranscription = "This is a simulated transcription of the voice message.";
+      
+      // Update the voice message with the transcription
+      const updatedVoiceMessage = await storage.updateVoiceMessage(voiceMessageId, {
+        transcription: simulatedTranscription,
+        transcriptionLanguage: Language.ENGLISH
+      });
+      
+      // If the target language is different, translate the transcription
+      if (targetLanguage !== Language.ENGLISH) {
+        const translatedText = await bhashiniTranslation.translate(
+          simulatedTranscription,
+          Language.ENGLISH, 
+          targetLanguage as Language
+        );
+        
+        res.json({
+          voiceMessage: updatedVoiceMessage,
+          transcription: simulatedTranscription,
+          translatedTranscription: translatedText,
+          sourceLanguage: Language.ENGLISH,
+          targetLanguage
+        });
+      } else {
+        res.json({
+          voiceMessage: updatedVoiceMessage,
+          transcription: simulatedTranscription,
+          translatedTranscription: null,
+          sourceLanguage: Language.ENGLISH,
+          targetLanguage
+        });
+      }
     } catch (err) {
       handleErrors(err, res);
     }

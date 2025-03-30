@@ -44,6 +44,24 @@ import {
   GiftOrder,
   InsertGiftOrder,
   giftOrders,
+  LanguagePreference,
+  InsertLanguagePreference,
+  languagePreferences,
+  VoiceMessage,
+  InsertVoiceMessage,
+  voiceMessages,
+  CalendarEvent,
+  InsertCalendarEvent,
+  calendarEvents,
+  Notification,
+  InsertNotification,
+  notifications,
+  NotificationPreference,
+  InsertNotificationPreference,
+  notificationPreferences,
+  PrivacySetting,
+  InsertPrivacySetting,
+  privacySettings
 } from "@shared/schema";
 
 export interface IStorage {
@@ -146,6 +164,43 @@ export interface IStorage {
   getRecipientGiftOrders(recipientId: number): Promise<GiftOrder[]>;
   createGiftOrder(order: InsertGiftOrder): Promise<GiftOrder>;
   updateGiftOrder(id: number, order: Partial<GiftOrder>): Promise<GiftOrder>;
+  
+  // Language preferences
+  getLanguagePreferences(userId: number): Promise<LanguagePreference | undefined>;
+  createLanguagePreferences(preferences: InsertLanguagePreference): Promise<LanguagePreference>;
+  updateLanguagePreferences(userId: number, preferences: Partial<LanguagePreference>): Promise<LanguagePreference>;
+  
+  // Privacy settings
+  getPrivacySettings(userId: number): Promise<PrivacySetting | undefined>;
+  createPrivacySettings(settings: InsertPrivacySetting): Promise<PrivacySetting>;
+  updatePrivacySettings(userId: number, settings: Partial<PrivacySetting>): Promise<PrivacySetting>;
+  
+  // Voice messages
+  getVoiceMessage(id: number): Promise<VoiceMessage | undefined>;
+  getVoiceMessagesByMessage(messageId: number): Promise<VoiceMessage | undefined>;
+  getVoiceMessagesByGroupMessage(groupMessageId: number): Promise<VoiceMessage | undefined>;
+  createVoiceMessage(voiceMessage: InsertVoiceMessage): Promise<VoiceMessage>;
+  updateVoiceMessage(id: number, voiceMessage: Partial<VoiceMessage>): Promise<VoiceMessage>;
+  
+  // Calendar events
+  getCalendarEvent(id: number): Promise<CalendarEvent | undefined>;
+  getUserCalendarEvents(userId: number): Promise<CalendarEvent[]>;
+  createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
+  updateCalendarEvent(id: number, event: Partial<CalendarEvent>): Promise<CalendarEvent>;
+  deleteCalendarEvent(id: number): Promise<void>;
+  
+  // Notifications
+  getNotification(id: number): Promise<Notification | undefined>;
+  getUserNotifications(userId: number): Promise<Notification[]>;
+  getUnreadNotificationsCount(userId: number): Promise<number>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: number): Promise<Notification>;
+  deleteNotification(id: number): Promise<void>;
+  
+  // Notification preferences
+  getNotificationPreferences(userId: number): Promise<NotificationPreference | undefined>;
+  createNotificationPreferences(preferences: InsertNotificationPreference): Promise<NotificationPreference>;
+  updateNotificationPreferences(userId: number, preferences: Partial<NotificationPreference>): Promise<NotificationPreference>;
 }
 
 export class MemStorage implements IStorage {

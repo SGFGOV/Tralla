@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { Language } from "./i18n";
 
 // Users table
 export const users = pgTable("users", {
@@ -355,3 +356,187 @@ export const insertGiftOrderSchema = createInsertSchema(giftOrders).pick({
 
 export type InsertGiftOrder = z.infer<typeof insertGiftOrderSchema>;
 export type GiftOrder = typeof giftOrders.$inferSelect;
+
+// Language preferences table
+export const languagePreferences = pgTable("language_preferences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  primaryLanguage: text("primary_language").notNull().default(Language.ENGLISH), // Default language
+  secondaryLanguages: text("secondary_languages").array(), // Additional languages the user knows
+  autoTranslate: boolean("auto_translate").default(true), // Automatically translate incoming messages
+  autoDetectLanguage: boolean("auto_detect_language").default(true), // Auto detect message language
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertLanguagePreferenceSchema = createInsertSchema(languagePreferences).pick({
+  userId: true,
+  primaryLanguage: true,
+  secondaryLanguages: true,
+  autoTranslate: true,
+  autoDetectLanguage: true,
+});
+
+export type InsertLanguagePreference = z.infer<typeof insertLanguagePreferenceSchema>;
+export type LanguagePreference = typeof languagePreferences.$inferSelect;
+
+// Voice messages table
+export const voiceMessages = pgTable("voice_messages", {
+  id: serial("id").primaryKey(),
+  messageId: integer("message_id").references(() => messages.id), // For direct messages
+  groupMessageId: integer("group_message_id").references(() => groupMessages.id), // For group messages
+  audioUrl: text("audio_url").notNull(), // URL to the stored audio file
+  duration: integer("duration").notNull(), // Duration in seconds
+  transcription: text("transcription"), // Optional transcription of voice message
+  transcriptionLanguage: text("transcription_language"), // Language of the transcription
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertVoiceMessageSchema = createInsertSchema(voiceMessages).pick({
+  messageId: true,
+  groupMessageId: true,
+  audioUrl: true,
+  duration: true,
+  transcription: true,
+  transcriptionLanguage: true,
+});
+
+export type InsertVoiceMessage = z.infer<typeof insertVoiceMessageSchema>;
+export type VoiceMessage = typeof voiceMessages.$inferSelect;
+
+// Calendar events table
+export const calendarEvents = pgTable("calendar_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id), // Owner of the calendar event
+  title: text("title").notNull(),
+  description: text("description").default(""),
+  location: text("location").default(""),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  allDay: boolean("all_day").default(false),
+  recurrence: text("recurrence"), // RRULE format for recurring events
+  activityId: integer("activity_id").references(() => activities.id), // Linked activity if any
+  reminderMinutes: integer("reminder_minutes").array(), // Array of reminder times in minutes before event
+  calendarId: text("calendar_id"), // External calendar ID if synced
+  externalEventId: text("external_event_id"), // External event ID if synced
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCalendarEventSchema = createInsertSchema(calendarEvents).pick({
+  userId: true,
+  title: true,
+  description: true,
+  location: true,
+  startTime: true,
+  endTime: true,
+  allDay: true,
+  recurrence: true,
+  activityId: true,
+  reminderMinutes: true,
+  calendarId: true,
+  externalEventId: true,
+});
+
+export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
+
+// Notification preferences
+export const notificationPreferences = pgTable("notification_preferences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  newMessageEnabled: boolean("new_message_enabled").default(true),
+  groupMessageEnabled: boolean("group_message_enabled").default(true),
+  proximityAlertEnabled: boolean("proximity_alert_enabled").default(true),
+  friendRequestEnabled: boolean("friend_request_enabled").default(true),
+  eventReminderEnabled: boolean("event_reminder_enabled").default(true),
+  expenseUpdatesEnabled: boolean("expense_updates_enabled").default(true),
+  promotionsEnabled: boolean("promotions_enabled").default(true),
+  emailNotificationsEnabled: boolean("email_notifications_enabled").default(true),
+  pushNotificationsEnabled: boolean("push_notifications_enabled").default(true),
+  doNotDisturbFrom: text("do_not_disturb_from"), // Time in format 'HH:MM'
+  doNotDisturbTo: text("do_not_disturb_to"), // Time in format 'HH:MM'
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertNotificationPreferenceSchema = createInsertSchema(notificationPreferences).pick({
+  userId: true,
+  newMessageEnabled: true,
+  groupMessageEnabled: true,
+  proximityAlertEnabled: true,
+  friendRequestEnabled: true,
+  eventReminderEnabled: true,
+  expenseUpdatesEnabled: true,
+  promotionsEnabled: true,
+  emailNotificationsEnabled: true,
+  pushNotificationsEnabled: true,
+  doNotDisturbFrom: true,
+  doNotDisturbTo: true,
+});
+
+export type InsertNotificationPreference = z.infer<typeof insertNotificationPreferenceSchema>;
+export type NotificationPreference = typeof notificationPreferences.$inferSelect;
+
+// Notifications table
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  type: text("type").notNull(), // message, friend_request, proximity_alert, expense, event, etc.
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  read: boolean("read").default(false),
+  actionUrl: text("action_url"), // Deep link to navigate to when notification is clicked
+  relatedUserId: integer("related_user_id").references(() => users.id), // User related to notification if any
+  relatedEntityId: integer("related_entity_id"), // ID of related entity (message, group, activity, etc.)
+  relatedEntityType: text("related_entity_type"), // Type of related entity (message, group, activity, etc.)
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).pick({
+  userId: true,
+  type: true,
+  title: true,
+  body: true,
+  read: true,
+  actionUrl: true,
+  relatedUserId: true,
+  relatedEntityId: true,
+  relatedEntityType: true,
+});
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
+
+// Privacy settings table
+export const privacySettings = pgTable("privacy_settings", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  showOnlineStatus: boolean("show_online_status").default(true),
+  showLastActive: boolean("show_last_active").default(true),
+  allowFriendRequests: boolean("allow_friend_requests").default(true),
+  allowProximityDiscovery: boolean("allow_proximity_discovery").default(true),
+  allowLocationSharing: boolean("allow_location_sharing").default(true),
+  showBirthday: boolean("show_birthday").default(true),
+  showEmail: boolean("show_email").default(false),
+  profileVisibility: text("profile_visibility").default("public"), // public, friends, private
+  messagesFromNonFriends: boolean("messages_from_non_friends").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPrivacySettingSchema = createInsertSchema(privacySettings).pick({
+  userId: true,
+  showOnlineStatus: true,
+  showLastActive: true,
+  allowFriendRequests: true,
+  allowProximityDiscovery: true,
+  allowLocationSharing: true,
+  showBirthday: true,
+  showEmail: true,
+  profileVisibility: true,
+  messagesFromNonFriends: true,
+});
+
+export type InsertPrivacySetting = z.infer<typeof insertPrivacySettingSchema>;
+export type PrivacySetting = typeof privacySettings.$inferSelect;
