@@ -231,6 +231,10 @@ export default function SocialMediaLinks() {
                   </option>
                 ))}
               </select>
+              {/* Platform icon preview */}
+              <div className="mt-2 text-center text-xl">
+                {getPlatformIcon(newAccount.platform)}
+              </div>
             </div>
             
             <div className="space-y-2">
@@ -263,7 +267,8 @@ export default function SocialMediaLinks() {
               className="mt-2"
               onClick={() => setShowAddForm(true)}
             >
-              Connect an Account
+              <Plus className="h-4 w-4 mr-2" />
+              Add Account
             </Button>
           </div>
         ) : (
