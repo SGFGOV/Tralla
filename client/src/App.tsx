@@ -14,7 +14,7 @@ import Groups from "./pages/groups";
 import GroupDetail from "./pages/group-detail";
 import Profile from "./pages/profile";
 import ProfileDetail from "./pages/profile-detail";
-import FacialRecognition from "./pages/facial-recognition";
+// Facial recognition functionality will be integrated into profile page
 import AppLayout from "./components/layout/app-layout";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -99,13 +99,7 @@ function Router() {
         )}
       </Route>
       
-      <Route path="/facial-recognition">
-        <PrivateRoute>
-          <AppLayout>
-            <FacialRecognition />
-          </AppLayout>
-        </PrivateRoute>
-      </Route>
+      {/* Facial recognition is now integrated into profile and nearby pages */}
       
       <Route component={NotFound} />
     </Switch>
