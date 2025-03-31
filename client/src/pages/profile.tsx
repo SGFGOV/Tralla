@@ -10,10 +10,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BirthdayReminder from "@/components/ui/birthday-reminder";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { getInitials } from "@/lib/utils/user-utils";
 import GiftSuggestion from "@/components/ui/gift-suggestion";
+import FaceCapture from "@/components/facial-recognition/face-capture";
+import PrivacySettings from "@/components/profile/privacy-settings";
+import SocialMediaLinks from "@/components/profile/social-media-links";
+import { Camera, UserCog, Share2 } from "lucide-react";
 
 export default function Profile() {
   const { user, updateUser } = useAuth();
@@ -125,6 +130,16 @@ export default function Profile() {
       </div>
     );
   }
+
+  const [faceRegistered, setFaceRegistered] = useState(false);
+  
+  const handleFaceRegistrationSuccess = () => {
+    setFaceRegistered(true);
+    toast({
+      title: "Face Registration Successful",
+      description: "Your face has been registered for recognition.",
+    });
+  };
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -256,29 +271,72 @@ export default function Profile() {
             )}
           </div>
           
-          {/* Birthday reminders */}
-          {frequentContacts.length > 0 && (
-            <div className="mt-4 pb-4 border-b border-neutral-200">
-              <h3 className="font-semibold text-neutral-800">Upcoming Birthdays</h3>
-              <div className="mt-2">
-                <BirthdayReminder contacts={frequentContacts.map(f => f.friend)} />
-              </div>
-            </div>
-          )}
-          
-          {/* Gift suggestions */}
-          {frequentContacts.length > 0 && (
-            <div className="mt-4 pb-4 border-b border-neutral-200">
-              <h3 className="font-semibold text-neutral-800">Gift Ideas</h3>
-              <div className="mt-2">
-                <GiftSuggestion userId={frequentContacts[0].friend.id} />
-              </div>
-            </div>
-          )}
+          {/* Settings Tabs */}
+          <div className="mt-4 pb-4">
+            <Tabs defaultValue="privacy" className="w-full">
+              <TabsList className="w-full grid grid-cols-3">
+                <TabsTrigger value="privacy" className="flex items-center gap-1">
+                  <UserCog className="h-4 w-4" />
+                  <span className="hidden sm:inline">Privacy</span>
+                </TabsTrigger>
+                <TabsTrigger value="social" className="flex items-center gap-1">
+                  <Share2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Social</span>
+                </TabsTrigger>
+                <TabsTrigger value="face-id" className="flex items-center gap-1">
+                  <Camera className="h-4 w-4" />
+                  <span className="hidden sm:inline">Face ID</span>
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="privacy" className="mt-4">
+                <PrivacySettings />
+              </TabsContent>
+              
+              <TabsContent value="social" className="mt-4">
+                <SocialMediaLinks />
+              </TabsContent>
+              
+              <TabsContent value="face-id" className="mt-4">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold mb-2">Face Recognition</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Register your face to enable automatic recognition when using proximity features.
+                    This will help others find and connect with you.
+                  </p>
+                  
+                  {faceRegistered ? (
+                    <div className="p-4 rounded-lg bg-primary/10 text-center">
+                      <div className="mb-2 text-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                          <polyline points="22 4 12 14.01 9 11.01" />
+                        </svg>
+                      </div>
+                      <p className="font-medium">Facial recognition registered successfully!</p>
+                      <p className="text-sm mt-1">Others can now identify you using the camera.</p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="mt-2"
+                        onClick={() => setFaceRegistered(false)}
+                      >
+                        Update Recognition Data
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="border rounded-lg overflow-hidden">
+                      <FaceCapture onSuccess={handleFaceRegistrationSuccess} />
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
           
           {/* Privacy Settings Preview */}
-          <div className="mt-4 pb-4">
-            <h3 className="font-semibold text-neutral-800">Privacy</h3>
+          <div className="mt-4 pb-4 border-t border-neutral-200 pt-4">
+            <h3 className="font-semibold text-neutral-800">Quick Settings</h3>
             <div className="mt-4 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -305,6 +363,26 @@ export default function Profile() {
               </div>
             </div>
           </div>
+          
+          {/* Birthday reminders */}
+          {frequentContacts.length > 0 && (
+            <div className="mt-4 pb-4 border-t border-neutral-200 pt-4">
+              <h3 className="font-semibold text-neutral-800">Upcoming Birthdays</h3>
+              <div className="mt-2">
+                <BirthdayReminder contacts={frequentContacts.map(f => f.friend)} />
+              </div>
+            </div>
+          )}
+          
+          {/* Gift suggestions */}
+          {frequentContacts.length > 0 && (
+            <div className="mt-4 pb-4 border-t border-neutral-200 pt-4">
+              <h3 className="font-semibold text-neutral-800">Gift Ideas</h3>
+              <div className="mt-2">
+                <GiftSuggestion userId={frequentContacts[0].friend.id} />
+              </div>
+            </div>
+          )}
           
           {/* Logout */}
           <div className="mt-4 pb-8">
