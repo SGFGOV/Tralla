@@ -61,7 +61,13 @@ import {
   notificationPreferences,
   PrivacySetting,
   InsertPrivacySetting,
-  privacySettings
+  privacySettings,
+  SocialMediaAccount,
+  InsertSocialMediaAccount,
+  socialMediaAccounts,
+  Otp,
+  InsertOtp,
+  otps
 } from "@shared/schema";
 
 export interface IStorage {
@@ -229,6 +235,26 @@ export interface IStorage {
   getFaceEmbeddings(userId: number): Promise<Array<{embedding: number[], imageUrl?: string}>>;
   getAllFaceEmbeddings(): Promise<Array<{userId: number, embedding: number[], imageUrl?: string}>>;
   identifyUserByFaceEmbedding(embedding: number[], similarityThreshold?: number): Promise<number | null>;
+  
+  // OTP operations
+  createOtp(otp: InsertOtp): Promise<Otp>;
+  getOtpByCode(code: string, type: string): Promise<Otp | undefined>;
+  getOtpByPhone(phone: string, type: string): Promise<Otp | undefined>;
+  getOtpByEmail(email: string, type: string): Promise<Otp | undefined>;
+  verifyOtp(id: number): Promise<Otp>;
+  incrementOtpAttempts(id: number): Promise<Otp>;
+  getUserByPhone(phone: string): Promise<User | undefined>;
+  
+  // Social media accounts operations
+  createSocialMediaAccount(account: InsertSocialMediaAccount): Promise<SocialMediaAccount>;
+  updateSocialMediaAccount(id: number, account: Partial<SocialMediaAccount>): Promise<SocialMediaAccount>;
+  deleteSocialMediaAccount(id: number): Promise<void>;
+  getSocialMediaAccount(id: number): Promise<SocialMediaAccount | undefined>;
+  getUserSocialMediaAccounts(userId: number): Promise<SocialMediaAccount[]>;
+  getSocialMediaAccountByPlatform(userId: number, platform: string): Promise<SocialMediaAccount | undefined>;
+  
+  // Stripe extensions
+  updateUserStripeInfo(userId: number, info: { stripeCustomerId: string, stripeSubscriptionId?: string }): Promise<User>;
 }
 
 export class MemStorage implements IStorage {
@@ -253,6 +279,8 @@ export class MemStorage implements IStorage {
   private calendarEvents: Map<number, CalendarEvent>;
   private notifications: Map<number, Notification>;
   private notificationPreferences: Map<number, NotificationPreference>;
+  private socialMediaAccounts: Map<number, SocialMediaAccount>;
+  private otps: Map<number, Otp>;
   
   private userIdCounter: number;
   private proximitySettingsIdCounter: number;
@@ -275,6 +303,8 @@ export class MemStorage implements IStorage {
   private calendarEventIdCounter: number;
   private notificationIdCounter: number;
   private notificationPreferenceIdCounter: number;
+  private socialMediaAccountIdCounter: number;
+  private otpIdCounter: number;
 
   constructor() {
     this.users = new Map();
@@ -299,6 +329,7 @@ export class MemStorage implements IStorage {
     this.notifications = new Map();
     this.notificationPreferences = new Map();
     this.socialMediaAccounts = new Map();
+    this.otps = new Map();
     
     this.userIdCounter = 1;
     this.proximitySettingsIdCounter = 1;
@@ -322,6 +353,7 @@ export class MemStorage implements IStorage {
     this.notificationIdCounter = 1;
     this.notificationPreferenceIdCounter = 1;
     this.socialMediaAccountIdCounter = 1;
+    this.otpIdCounter = 1;
   }
 
   // User operations
@@ -1669,6 +1701,142 @@ export class MemStorage implements IStorage {
     this.paymentMethods.set(paymentMethodId, method);
     
     return method;
+  }
+
+  // OTP methods
+  async createOtp(otp: InsertOtp): Promise<Otp> {
+    const id = this.otpIdCounter++;
+    
+    const newOtp: Otp = {
+      ...otp,
+      id,
+      verified: false,
+      attempts: 0,
+      createdAt: new Date()
+    };
+    
+    this.otps.set(id, newOtp);
+    
+    return newOtp;
+  }
+
+  async getOtpByCode(code: string, type: string): Promise<Otp | undefined> {
+    return Array.from(this.otps.values()).find(
+      (otp) => otp.code === code && otp.type === type && !otp.verified
+    );
+  }
+
+  async getOtpByPhone(phone: string, type: string): Promise<Otp | undefined> {
+    return Array.from(this.otps.values()).find(
+      (otp) => otp.phone === phone && otp.type === type && !otp.verified
+    );
+  }
+
+  async getOtpByEmail(email: string, type: string): Promise<Otp | undefined> {
+    return Array.from(this.otps.values()).find(
+      (otp) => otp.email === email && otp.type === type && !otp.verified
+    );
+  }
+
+  async verifyOtp(id: number): Promise<Otp> {
+    const otp = this.otps.get(id);
+    if (!otp) {
+      throw new Error(`OTP with id ${id} not found`);
+    }
+    
+    const updatedOtp = { ...otp, verified: true };
+    this.otps.set(id, updatedOtp);
+    
+    return updatedOtp;
+  }
+
+  async incrementOtpAttempts(id: number): Promise<Otp> {
+    const otp = this.otps.get(id);
+    if (!otp) {
+      throw new Error(`OTP with id ${id} not found`);
+    }
+    
+    const updatedOtp = { ...otp, attempts: (otp.attempts || 0) + 1 };
+    this.otps.set(id, updatedOtp);
+    
+    return updatedOtp;
+  }
+
+  async getUserByPhone(phone: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.phone === phone
+    );
+  }
+
+  // Social media accounts methods
+  async createSocialMediaAccount(account: InsertSocialMediaAccount): Promise<SocialMediaAccount> {
+    const id = this.socialMediaAccountIdCounter++;
+    
+    const newAccount: SocialMediaAccount = {
+      ...account,
+      id,
+      displayName: account.displayName || null,
+      profileUrl: account.profileUrl || null,
+      accessToken: account.accessToken || null,
+      refreshToken: account.refreshToken || null,
+      tokenExpiry: account.tokenExpiry || null,
+      isVerified: account.isVerified || false,
+      isPublic: account.isPublic !== undefined ? account.isPublic : true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    this.socialMediaAccounts.set(id, newAccount);
+    
+    return newAccount;
+  }
+
+  async updateSocialMediaAccount(id: number, accountData: Partial<SocialMediaAccount>): Promise<SocialMediaAccount> {
+    const account = await this.getSocialMediaAccount(id);
+    if (!account) {
+      throw new Error(`Social media account with id ${id} not found`);
+    }
+    
+    const updatedAccount = { ...account, ...accountData, updatedAt: new Date() };
+    this.socialMediaAccounts.set(id, updatedAccount);
+    
+    return updatedAccount;
+  }
+
+  async deleteSocialMediaAccount(id: number): Promise<void> {
+    this.socialMediaAccounts.delete(id);
+  }
+
+  async getSocialMediaAccount(id: number): Promise<SocialMediaAccount | undefined> {
+    return this.socialMediaAccounts.get(id);
+  }
+
+  async getUserSocialMediaAccounts(userId: number): Promise<SocialMediaAccount[]> {
+    return Array.from(this.socialMediaAccounts.values())
+      .filter((account) => account.userId === userId);
+  }
+
+  async getSocialMediaAccountByPlatform(userId: number, platform: string): Promise<SocialMediaAccount | undefined> {
+    return Array.from(this.socialMediaAccounts.values())
+      .find((account) => account.userId === userId && account.platform === platform);
+  }
+
+  // Stripe extensions
+  async updateUserStripeInfo(userId: number, info: { stripeCustomerId: string, stripeSubscriptionId?: string }): Promise<User> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error(`User with id ${userId} not found`);
+    }
+    
+    const updatedUser = { 
+      ...user, 
+      stripeCustomerId: info.stripeCustomerId,
+      ...(info.stripeSubscriptionId ? { stripeSubscriptionId: info.stripeSubscriptionId } : {})
+    };
+    
+    this.users.set(userId, updatedUser);
+    
+    return updatedUser;
   }
 }
 

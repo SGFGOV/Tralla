@@ -24,6 +24,7 @@ import {
   insertNotificationSchema,
   insertPrivacySettingSchema,
   insertSocialMediaAccountSchema,
+  insertOtpSchema,
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -315,6 +316,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(200).json({ success: true });
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  // OTP routes
+  app.post('/api/auth/request-otp', async (req: Request, res: Response) => {
+    try {
+      const { type, email, phone } = z.object({
+        type: z.enum(['email', 'sms', 'reset']),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+      }).parse(req.body);
+      
+      if (!email && !phone) {
+        return res.status(400).json({ error: 'Either email or phone must be provided' });
+      }
+      
+      // Check if user exists
+      let userId: number | null = null;
+      if (email) {
+        const user = await storage.getUserByEmail(email);
+        if (user) {
+          userId = user.id;
+        }
+      }
+      
+      // Generate a 6-digit OTP code
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Set expiration time (10 minutes)
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+      
+      // Create OTP record
+      const otp = await storage.createOtp({
+        code,
+        type,
+        email: email || null,
+        phone: phone || null,
+        userId,
+        expiresAt,
+      });
+      
+      // In a real application, we would send the OTP via email or SMS here
+      // For development, we'll just return the code in the response
+      res.status(201).json({ 
+        success: true, 
+        message: `OTP sent to ${email || phone}`,
+        code: process.env.NODE_ENV === 'development' ? code : undefined 
+      });
+      
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  app.post('/api/auth/verify-otp', async (req: Request, res: Response) => {
+    try {
+      const { code, email, phone } = z.object({
+        code: z.string(),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+      }).parse(req.body);
+      
+      if (!email && !phone) {
+        return res.status(400).json({ error: 'Either email or phone must be provided' });
+      }
+      
+      // Find the OTP
+      let otp;
+      if (email) {
+        otp = await storage.getOtpByEmail(email);
+      } else if (phone) {
+        otp = await storage.getOtpByPhone(phone);
+      }
+      
+      if (!otp) {
+        return res.status(404).json({ error: 'OTP not found' });
+      }
+      
+      // Check if OTP is expired
+      if (new Date() > otp.expiresAt) {
+        return res.status(400).json({ error: 'OTP has expired' });
+      }
+      
+      // Check if OTP is already verified
+      if (otp.verified) {
+        return res.status(400).json({ error: 'OTP has already been used' });
+      }
+      
+      // Check if max attempts reached
+      if (otp.attempts >= 3) {
+        return res.status(400).json({ error: 'Maximum verification attempts reached' });
+      }
+      
+      // Increment attempt counter
+      await storage.incrementOtpAttempts(otp.id);
+      
+      // Check if the code matches
+      if (otp.code !== code) {
+        return res.status(400).json({ error: 'Invalid OTP code' });
+      }
+      
+      // Mark OTP as verified
+      await storage.markOtpAsVerified(otp.id);
+      
+      // Check if this is for password reset
+      if (otp.type === 'reset' && otp.userId) {
+        // Generate a reset token
+        const resetToken = jwt.sign(
+          { userId: otp.userId },
+          JWT_SECRET,
+          { expiresIn: '1h' }
+        );
+        
+        return res.json({ success: true, resetToken });
+      }
+      
+      res.json({ success: true });
+      
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  app.post('/api/auth/reset-password', async (req: Request, res: Response) => {
+    try {
+      const { resetToken, newPassword, confirmPassword } = z.object({
+        resetToken: z.string(),
+        newPassword: z.string().min(6),
+        confirmPassword: z.string().min(6),
+      }).parse(req.body);
+      
+      // Check if passwords match
+      if (newPassword !== confirmPassword) {
+        return res.status(400).json({ error: 'Passwords do not match' });
+      }
+      
+      // Verify token
+      let decoded;
+      try {
+        decoded = jwt.verify(resetToken, JWT_SECRET) as { userId: number };
+      } catch (error) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+      
+      // Update password
+      const user = await storage.getUser(decoded.userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      await storage.updateUser(user.id, { password: newPassword });
+      
+      res.json({ success: true });
+      
     } catch (err) {
       handleErrors(err, res);
     }

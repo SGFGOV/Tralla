@@ -7,6 +7,7 @@ import { DeviceProvider } from "./contexts/device-context";
 import NotFound from "@/pages/not-found";
 import Login from "./pages/login";
 import Register from "./pages/register";
+import ForgotPassword from "./pages/forgot-password";
 import Nearby from "./pages/nearby";
 import Chats from "./pages/chats";
 import ChatDetail from "./pages/chat-detail";
@@ -37,6 +38,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/forgot-password" component={ForgotPassword} />
       
       <Route path="/">
         <PrivateRoute>

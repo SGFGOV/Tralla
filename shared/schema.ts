@@ -573,3 +573,29 @@ export const insertSocialMediaAccountSchema = createInsertSchema(socialMediaAcco
 
 export type InsertSocialMediaAccount = z.infer<typeof insertSocialMediaAccountSchema>;
 export type SocialMediaAccount = typeof socialMediaAccounts.$inferSelect;
+
+// OTP table
+export const otps = pgTable("otps", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  phone: text("phone"),
+  email: text("email"),
+  code: text("code").notNull(),
+  type: text("type").notNull(), // login, registration, password-reset
+  expiresAt: timestamp("expires_at").notNull(),
+  verified: boolean("verified").default(false),
+  attempts: integer("attempts").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertOtpSchema = createInsertSchema(otps).pick({
+  userId: true,
+  phone: true,
+  email: true,
+  code: true,
+  type: true,
+  expiresAt: true,
+});
+
+export type InsertOtp = z.infer<typeof insertOtpSchema>;
+export type Otp = typeof otps.$inferSelect;
