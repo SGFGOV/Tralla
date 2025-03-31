@@ -14,7 +14,7 @@ export default function Nearby() {
   const { user } = useAuth();
   const location = useLocation();
   const { toast } = useToast();
-  const [viewMode, setViewMode] = useState<'list' | 'camera'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'camera'>('camera');
   
   const { 
     connected, 
