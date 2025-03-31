@@ -1,8 +1,12 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { WebSocketServer, WebSocket } from "ws";
 import { z } from "zod";
+import { fileURLToPath } from "url";
+import path from 'path';
+import fs from 'fs';
+
 import {
   insertUserSchema,
   insertMessageSchema,
@@ -18,11 +22,20 @@ import {
   insertLanguagePreferenceSchema,
   insertNotificationSchema,
   insertPrivacySettingSchema,
+  insertSocialMediaAccountSchema,
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { bhashiniTranslation } from "./services/bhashiniTranslation";
+import * as facialRecognition from "./services/facialRecognition";
 import { Language } from "@shared/i18n";
+import jwt from 'jsonwebtoken';
+import multer from 'multer';
+
+// Secret for signing JWT tokens
+const JWT_SECRET = process.env.JWT_SECRET || 'tralla-jwt-secret';
+const OAUTH_CLIENT_ID = process.env.OAUTH_CLIENT_ID || 'tralla-client';
+const OAUTH_CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET || 'tralla-secret';
 
 interface WSMessage {
   type: string;
@@ -1425,6 +1438,392 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error updating notification preferences:', error);
       return res.status(500).json({ error: 'Failed to update notification preferences' });
+    }
+  });
+
+  // ============================
+  // Social Media Account Routes
+  // ============================
+  app.get('/api/users/:userId/social-media-accounts', async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      const accounts = await storage.getUserSocialMediaAccounts(userId);
+      
+      // Sanitize sensitive data
+      const sanitizedAccounts = accounts.map(account => {
+        const { accessToken, refreshToken, ...safeAccount } = account;
+        return safeAccount;
+      });
+      
+      res.json(sanitizedAccounts);
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+
+  app.post('/api/social-media-accounts', async (req: Request, res: Response) => {
+    try {
+      const accountData = insertSocialMediaAccountSchema.parse(req.body);
+      const newAccount = await storage.createSocialMediaAccount(accountData);
+      
+      // Sanitize sensitive data before returning
+      const { accessToken, refreshToken, ...safeAccount } = newAccount;
+      res.status(201).json(safeAccount);
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+
+  app.patch('/api/social-media-accounts/:id', async (req: Request, res: Response) => {
+    try {
+      const accountId = Number(req.params.id);
+      const updateData = req.body;
+      
+      const updatedAccount = await storage.updateSocialMediaAccount(accountId, updateData);
+      
+      // Sanitize sensitive data before returning
+      const { accessToken, refreshToken, ...safeAccount } = updatedAccount;
+      res.json(safeAccount);
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+
+  app.delete('/api/social-media-accounts/:id', async (req: Request, res: Response) => {
+    try {
+      const accountId = Number(req.params.id);
+      
+      await storage.deleteSocialMediaAccount(accountId);
+      res.status(204).send();
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+
+  // ============================
+  // OAuth Client and Provider Routes
+  // ============================
+  
+  // Middleware for verifying JWT token
+  const verifyToken = (req: Request, res: Response, next: NextFunction) => {
+    const bearerHeader = req.headers['authorization'];
+    
+    if (typeof bearerHeader !== 'undefined') {
+      const bearer = bearerHeader.split(' ');
+      const bearerToken = bearer[1];
+      
+      jwt.verify(bearerToken, JWT_SECRET, (err: any, decoded: any) => {
+        if (err) {
+          return res.status(401).json({ error: 'Invalid token' });
+        }
+        
+        // Add the decoded token to the request object
+        (req as any).user = decoded;
+        next();
+      });
+    } else {
+      res.status(401).json({ error: 'Token not provided' });
+    }
+  };
+
+  // OAuth 2.0 Authorization Server routes (Tralla as a Provider)
+  
+  // Authorization endpoint
+  app.get('/oauth/authorize', async (req: Request, res: Response) => {
+    try {
+      const { client_id, redirect_uri, response_type, scope, state } = req.query;
+      
+      // Validate request
+      if (!client_id || !redirect_uri || response_type !== 'code') {
+        return res.status(400).json({ error: 'Invalid request parameters' });
+      }
+      
+      // Here you would normally verify the client_id against registered clients
+      // and check if the redirect_uri matches what's registered for the client
+      
+      // For now we'll use our hardcoded client
+      if (client_id !== OAUTH_CLIENT_ID) {
+        return res.status(400).json({ error: 'Invalid client_id' });
+      }
+      
+      // Generate an authorization code
+      const authCode = Math.random().toString(36).substring(2, 15);
+      
+      // In a real implementation, we would store this code along with associated
+      // client_id, redirect_uri, expiration time, etc.
+      
+      // For this demo, we'll redirect immediately with the code
+      const redirectUrl = `${redirect_uri}?code=${authCode}&state=${state || ''}`;
+      res.redirect(redirectUrl);
+      
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  // Token endpoint
+  app.post('/oauth/token', async (req: Request, res: Response) => {
+    try {
+      const { grant_type, code, redirect_uri, client_id, client_secret } = req.body;
+      
+      // Validate request
+      if (!grant_type || !client_id || !client_secret) {
+        return res.status(400).json({ error: 'Invalid request parameters' });
+      }
+      
+      // Validate client credentials
+      if (client_id !== OAUTH_CLIENT_ID || client_secret !== OAUTH_CLIENT_SECRET) {
+        return res.status(401).json({ error: 'Invalid client credentials' });
+      }
+      
+      if (grant_type === 'authorization_code') {
+        // In a real implementation, we would validate the authorization code
+        // and check that it matches the redirect_uri
+        
+        // Generate access token and refresh token
+        const accessToken = jwt.sign({ 
+          client_id, 
+          scope: 'read profile' // Example scope
+        }, JWT_SECRET, { expiresIn: '1h' });
+        
+        const refreshToken = jwt.sign({ 
+          client_id,
+          type: 'refresh'
+        }, JWT_SECRET, { expiresIn: '30d' });
+        
+        res.json({
+          access_token: accessToken,
+          token_type: 'Bearer',
+          expires_in: 3600, // 1 hour
+          refresh_token: refreshToken
+        });
+      } else if (grant_type === 'refresh_token') {
+        const { refresh_token } = req.body;
+        
+        if (!refresh_token) {
+          return res.status(400).json({ error: 'Refresh token required' });
+        }
+        
+        // Verify refresh token
+        jwt.verify(refresh_token, JWT_SECRET, (err: any, decoded: any) => {
+          if (err || !decoded || decoded.type !== 'refresh' || decoded.client_id !== client_id) {
+            return res.status(401).json({ error: 'Invalid refresh token' });
+          }
+          
+          // Generate new access token
+          const accessToken = jwt.sign({ 
+            client_id, 
+            scope: 'read profile' // Example scope - ideally would take from the refresh token
+          }, JWT_SECRET, { expiresIn: '1h' });
+          
+          res.json({
+            access_token: accessToken,
+            token_type: 'Bearer',
+            expires_in: 3600, // 1 hour
+          });
+        });
+      } else {
+        res.status(400).json({ error: 'Unsupported grant type' });
+      }
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  // Protected resource endpoint
+  app.get('/oauth/userinfo', verifyToken, async (req: Request, res: Response) => {
+    // Here we'd normally use the user ID from the token to fetch user data
+    // For now, just return some demo data
+    res.json({
+      id: (req as any).user.sub || '12345',
+      name: 'Demo User',
+      email: 'demo@tralla.com',
+      picture: 'https://via.placeholder.com/150'
+    });
+  });
+  
+  // OAuth client routes (Tralla as a Client)
+  
+  // This would integrate with external providers like Google, Facebook, etc.
+  app.post('/api/auth/oauth/:provider', async (req: Request, res: Response) => {
+    try {
+      const { provider } = req.params;
+      const { accessToken, refreshToken, profile } = req.body;
+      
+      // Validate the request
+      if (!accessToken || !profile) {
+        return res.status(400).json({ error: 'Invalid OAuth data' });
+      }
+      
+      // Use the profile data to find or create a user
+      const user = await storage.findOrCreateUserByOAuth(
+        { ...profile, provider },
+        accessToken,
+        refreshToken || ''
+      );
+      
+      // Create a JWT token for the user
+      const token = jwt.sign({ 
+        userId: user.id,
+        username: user.username
+      }, JWT_SECRET, { expiresIn: '24h' });
+      
+      // Remove password from user data
+      const { password, ...userWithoutPassword } = user;
+      
+      res.json({
+        token,
+        user: userWithoutPassword
+      });
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+
+  // Stripe payment integration
+  app.post('/api/payment/create-intent', async (req: Request, res: Response) => {
+    try {
+      // Ensure we have STRIPE_SECRET_KEY
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(500).json({ error: 'Stripe secret key is not configured' });
+      }
+      
+      const { amount, currency = 'usd' } = req.body;
+      
+      if (!amount) {
+        return res.status(400).json({ error: 'Amount is required' });
+      }
+      
+      // In a real implementation, you would use the Stripe SDK:
+      // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      // const paymentIntent = await stripe.paymentIntents.create({
+      //   amount: Math.round(amount * 100), // Convert to cents
+      //   currency,
+      // });
+      
+      // For now, return a mock payment intent
+      res.json({
+        clientSecret: 'mock_client_secret_' + Math.random().toString(36).substring(2, 15),
+        amount,
+        currency
+      });
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  // Configure multer for file uploads
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const uploadDir = path.join(__dirname, '../uploads');
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
+  const storage2 = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      const uniquePrefix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      const ext = path.extname(file.originalname);
+      cb(null, uniquePrefix + ext);
+    },
+  });
+  
+  const upload = multer({ 
+    storage: storage2,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max size
+    fileFilter: (req, file, cb) => {
+      // Accept only images
+      if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed'));
+      }
+    },
+  });
+
+  // Facial Recognition Routes
+  app.post('/api/facial-recognition/register', upload.single('image'), async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.body.userId);
+      
+      if (!req.file) {
+        return res.status(400).json({ error: 'No image file provided' });
+      }
+      
+      const imageBuffer = fs.readFileSync(req.file.path);
+      
+      // Register face for user
+      const success = await facialRecognition.registerUserFace(imageBuffer, userId);
+      
+      // Clean up the uploaded file
+      fs.unlinkSync(req.file.path);
+      
+      if (success) {
+        res.status(200).json({ success: true, message: 'Face registered successfully' });
+      } else {
+        res.status(400).json({ success: false, message: 'Failed to register face. No face detected in the image.' });
+      }
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  app.post('/api/facial-recognition/identify', upload.single('image'), async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No image file provided' });
+      }
+      
+      const imageBuffer = fs.readFileSync(req.file.path);
+      
+      // Identify user from face
+      const userId = await facialRecognition.identifyUserFromImage(imageBuffer);
+      
+      // Clean up the uploaded file
+      fs.unlinkSync(req.file.path);
+      
+      if (userId) {
+        // Get user details
+        const user = await storage.getUser(userId);
+        if (user) {
+          // Return user without password
+          const { password, ...userWithoutPassword } = user;
+          res.status(200).json({ success: true, user: userWithoutPassword });
+        } else {
+          res.status(404).json({ success: false, message: 'Identified user not found in database' });
+        }
+      } else {
+        res.status(404).json({ success: false, message: 'No matching face found' });
+      }
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  app.post('/api/facial-recognition/analyze', upload.single('image'), async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No image file provided' });
+      }
+      
+      const imageBuffer = fs.readFileSync(req.file.path);
+      
+      // Get face features from image
+      const features = await facialRecognition.getFaceFeaturesFromImage(imageBuffer);
+      
+      // Clean up the uploaded file
+      fs.unlinkSync(req.file.path);
+      
+      if (features) {
+        res.status(200).json({ success: true, features });
+      } else {
+        res.status(404).json({ success: false, message: 'No faces detected in the image' });
+      }
+    } catch (err) {
+      handleErrors(err, res);
     }
   });
   

@@ -223,6 +223,12 @@ export interface IStorage {
     accessToken: string, 
     refreshToken: string
   ): Promise<User>;
+  
+  // Facial recognition data
+  storeFaceEmbedding(userId: number, embedding: number[], imageUrl?: string): Promise<boolean>;
+  getFaceEmbeddings(userId: number): Promise<Array<{embedding: number[], imageUrl?: string}>>;
+  getAllFaceEmbeddings(): Promise<Array<{userId: number, embedding: number[], imageUrl?: string}>>;
+  identifyUserByFaceEmbedding(embedding: number[], similarityThreshold?: number): Promise<number | null>;
 }
 
 export class MemStorage implements IStorage {
@@ -292,6 +298,7 @@ export class MemStorage implements IStorage {
     this.calendarEvents = new Map();
     this.notifications = new Map();
     this.notificationPreferences = new Map();
+    this.socialMediaAccounts = new Map();
     
     this.userIdCounter = 1;
     this.proximitySettingsIdCounter = 1;
@@ -314,6 +321,7 @@ export class MemStorage implements IStorage {
     this.calendarEventIdCounter = 1;
     this.notificationIdCounter = 1;
     this.notificationPreferenceIdCounter = 1;
+    this.socialMediaAccountIdCounter = 1;
   }
 
   // User operations
@@ -1256,6 +1264,172 @@ export class MemStorage implements IStorage {
     this.notificationPreferences.set(preferences.id, updatedPreferences);
     
     return updatedPreferences;
+  }
+  
+  // Social media accounts
+  private socialMediaAccounts: Map<number, SocialMediaAccount> = new Map();
+  private socialMediaAccountIdCounter: number = 1;
+  
+  async getSocialMediaAccount(id: number): Promise<SocialMediaAccount | undefined> {
+    return this.socialMediaAccounts.get(id);
+  }
+  
+  async getUserSocialMediaAccounts(userId: number): Promise<SocialMediaAccount[]> {
+    return Array.from(this.socialMediaAccounts.values())
+      .filter(account => account.userId === userId);
+  }
+  
+  async getSocialMediaAccountByPlatform(userId: number, platform: string): Promise<SocialMediaAccount | undefined> {
+    return Array.from(this.socialMediaAccounts.values())
+      .find(account => account.userId === userId && account.platform === platform);
+  }
+  
+  async createSocialMediaAccount(account: InsertSocialMediaAccount): Promise<SocialMediaAccount> {
+    const id = this.socialMediaAccountIdCounter++;
+    
+    const newAccount: SocialMediaAccount = {
+      ...account,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    this.socialMediaAccounts.set(id, newAccount);
+    
+    return newAccount;
+  }
+  
+  async updateSocialMediaAccount(id: number, accountData: Partial<SocialMediaAccount>): Promise<SocialMediaAccount> {
+    const account = await this.getSocialMediaAccount(id);
+    if (!account) {
+      throw new Error(`Social media account with id ${id} not found`);
+    }
+    
+    const updatedAccount = { 
+      ...account, 
+      ...accountData,
+      updatedAt: new Date() 
+    };
+    
+    this.socialMediaAccounts.set(id, updatedAccount);
+    
+    return updatedAccount;
+  }
+  
+  async deleteSocialMediaAccount(id: number): Promise<void> {
+    this.socialMediaAccounts.delete(id);
+  }
+  
+  // OAuth operations
+  async findOrCreateUserByOAuth(
+    profile: {
+      id: string;
+      provider: string;
+      displayName?: string;
+      emails?: Array<{ value: string }>;
+      photos?: Array<{ value: string }>;
+      username?: string;
+    }, 
+    accessToken: string, 
+    refreshToken: string
+  ): Promise<User> {
+    // First, check if we have a social media account for this user
+    const existingAccounts = Array.from(this.socialMediaAccounts.values())
+      .filter(account => 
+        account.platform === profile.provider && 
+        account.username === profile.id
+      );
+    
+    if (existingAccounts.length > 0) {
+      // We found a linked account, return the associated user
+      const userId = existingAccounts[0].userId;
+      const user = await this.getUser(userId);
+      
+      if (!user) {
+        throw new Error(`User with id ${userId} not found but has linked social account`);
+      }
+      
+      // Update the tokens
+      await this.updateSocialMediaAccount(existingAccounts[0].id, {
+        accessToken,
+        refreshToken,
+        tokenExpiry: new Date(Date.now() + 3600000), // 1 hour from now
+        updatedAt: new Date()
+      });
+      
+      return user;
+    }
+    
+    // No existing account, check if we have a user with matching email
+    let user: User | undefined;
+    
+    if (profile.emails && profile.emails.length > 0) {
+      const email = profile.emails[0].value;
+      user = await this.getUserByEmail(email);
+      
+      if (user) {
+        // We found a user with this email, link the social account
+        await this.createSocialMediaAccount({
+          userId: user.id,
+          platform: profile.provider,
+          username: profile.id,
+          displayName: profile.displayName || '',
+          profileUrl: '',
+          accessToken,
+          refreshToken,
+          tokenExpiry: new Date(Date.now() + 3600000), // 1 hour from now
+          isVerified: true,
+          isPublic: true
+        });
+        
+        return user;
+      }
+    }
+    
+    // No existing user, create one
+    const email = profile.emails && profile.emails.length > 0 
+      ? profile.emails[0].value 
+      : `${profile.id}@${profile.provider}.tralla.user`;
+    
+    const username = profile.username || 
+      (profile.displayName ? profile.displayName.replace(/\s+/g, '').toLowerCase() : `user_${Date.now()}`);
+    
+    // Generate a random password for OAuth users
+    const password = Math.random().toString(36).substring(2, 15) + 
+      Math.random().toString(36).substring(2, 15);
+    
+    // Create the user
+    user = await this.createUser({
+      username,
+      password, // Random password
+      email,
+      displayName: profile.displayName || username,
+      bio: '',
+      interests: [],
+      avatar: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : '',
+      birthday: null,
+      location: null,
+      online: true,
+      lastActive: new Date(),
+      createdAt: new Date(),
+      confirmPassword: password
+    });
+    
+    // Link the social account
+    await this.createSocialMediaAccount({
+      userId: user.id,
+      platform: profile.provider,
+      username: profile.id,
+      displayName: profile.displayName || '',
+      profileUrl: '',
+      accessToken,
+      refreshToken,
+      tokenExpiry: new Date(Date.now() + 3600000), // 1 hour from now
+      isVerified: true,
+      isPublic: true
+    });
+    
+    return user;
   }
   
   // Payment methods

@@ -15,6 +15,8 @@ export default function TabNavigation() {
       setActiveTab('groups');
     } else if (location.startsWith('/profile')) {
       setActiveTab('profile');
+    } else if (location.startsWith('/facial-recognition')) {
+      setActiveTab('facial-recognition');
     }
   }, [location]);
   
@@ -25,7 +27,7 @@ export default function TabNavigation() {
   
   return (
     <div className="px-2 border-b border-neutral-200">
-      <div className="flex">
+      <div className="flex flex-wrap">
         <button 
           className={`flex-1 py-3 px-2 font-medium text-sm ${
             activeTab === 'nearby' 
@@ -68,6 +70,17 @@ export default function TabNavigation() {
           onClick={() => handleTabClick('profile')}
         >
           <i className="fas fa-user mr-1"></i> Profile
+        </button>
+        
+        <button 
+          className={`flex-1 py-3 px-2 font-medium text-sm ${
+            activeTab === 'facial-recognition' 
+              ? 'text-primary border-b-2 border-primary' 
+              : 'text-neutral-500'
+          }`}
+          onClick={() => handleTabClick('facial-recognition')}
+        >
+          <i className="fas fa-camera mr-1"></i> Face ID
         </button>
       </div>
     </div>

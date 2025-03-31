@@ -14,6 +14,7 @@ import Groups from "./pages/groups";
 import GroupDetail from "./pages/group-detail";
 import Profile from "./pages/profile";
 import ProfileDetail from "./pages/profile-detail";
+import FacialRecognition from "./pages/facial-recognition";
 import AppLayout from "./components/layout/app-layout";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -96,6 +97,14 @@ function Router() {
             <ProfileDetail id={Number(params.id)} />
           </PrivateRoute>
         )}
+      </Route>
+      
+      <Route path="/facial-recognition">
+        <PrivateRoute>
+          <AppLayout>
+            <FacialRecognition />
+          </AppLayout>
+        </PrivateRoute>
       </Route>
       
       <Route component={NotFound} />
