@@ -1329,6 +1329,7 @@ export class MemStorage implements IStorage {
       emails?: Array<{ value: string }>;
       photos?: Array<{ value: string }>;
       username?: string;
+      _json?: any; // Additional provider-specific profile data
     }, 
     accessToken: string, 
     refreshToken: string
@@ -1357,6 +1358,9 @@ export class MemStorage implements IStorage {
         updatedAt: new Date()
       });
       
+      // Update the user profile with any new information from social media
+      await this.updateUserFromSocialProfile(user, profile);
+      
       return user;
     }
     
@@ -1374,7 +1378,7 @@ export class MemStorage implements IStorage {
           platform: profile.provider,
           username: profile.id,
           displayName: profile.displayName || '',
-          profileUrl: '',
+          profileUrl: this.generateProfileUrl(profile.provider, profile.id),
           accessToken,
           refreshToken,
           tokenExpiry: new Date(Date.now() + 3600000), // 1 hour from now
@@ -1382,11 +1386,14 @@ export class MemStorage implements IStorage {
           isPublic: true
         });
         
+        // Update the user profile with any new information from social media
+        await this.updateUserFromSocialProfile(user, profile);
+        
         return user;
       }
     }
     
-    // No existing user, create one
+    // No existing user, create one with enhanced profile data
     const email = profile.emails && profile.emails.length > 0 
       ? profile.emails[0].value 
       : `${profile.id}@${profile.provider}.tralla.user`;
@@ -1398,14 +1405,42 @@ export class MemStorage implements IStorage {
     const password = Math.random().toString(36).substring(2, 15) + 
       Math.random().toString(36).substring(2, 15);
     
-    // Create the user
+    // Extract bio from provider-specific data if available
+    let bio = '';
+    let interests: string[] = [];
+    
+    // Extract additional data based on provider
+    if (profile._json) {
+      switch (profile.provider) {
+        case 'facebook':
+          bio = profile._json.about || '';
+          break;
+        case 'twitter':
+          bio = profile._json.description || '';
+          break;
+        case 'google':
+          bio = profile._json.tagline || '';
+          break;
+        case 'linkedin':
+          bio = profile._json.headline || '';
+          if (profile._json.skills && profile._json.skills.values) {
+            interests = profile._json.skills.values.map((skill: any) => skill.skill.name);
+          }
+          break;
+        case 'instagram':
+          bio = profile._json.bio || '';
+          break;
+      }
+    }
+    
+    // Create the user with enhanced profile data
     user = await this.createUser({
       username,
       password, // Random password
       email,
       displayName: profile.displayName || username,
-      bio: '',
-      interests: [],
+      bio: bio || '',
+      interests: interests || [],
       avatar: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : '',
       birthday: null,
       location: null,
@@ -1415,13 +1450,13 @@ export class MemStorage implements IStorage {
       confirmPassword: password
     });
     
-    // Link the social account
+    // Link the social account with proper profile URL
     await this.createSocialMediaAccount({
       userId: user.id,
       platform: profile.provider,
       username: profile.id,
       displayName: profile.displayName || '',
-      profileUrl: '',
+      profileUrl: this.generateProfileUrl(profile.provider, profile.id),
       accessToken,
       refreshToken,
       tokenExpiry: new Date(Date.now() + 3600000), // 1 hour from now
@@ -1429,7 +1464,119 @@ export class MemStorage implements IStorage {
       isPublic: true
     });
     
+    // Create default privacy settings for the new user
+    try {
+      await this.createPrivacySettings({
+        userId: user.id,
+        showOnlineStatus: true,
+        showLastActive: true,
+        allowFriendRequests: true,
+        allowProximityDiscovery: true,
+        showFullName: true,
+        showEmail: false,
+        showBirthday: false,
+        showBio: true,
+        messagesFromNonFriends: true
+      });
+    } catch (error) {
+      console.error("Could not create privacy settings for OAuth user:", error);
+    }
+    
+    // Create default proximity settings for the new user
+    try {
+      await this.createProximitySetting({
+        userId: user.id,
+        radius: 100,
+        visible: true,
+        shareLocation: true
+      });
+    } catch (error) {
+      console.error("Could not create proximity settings for OAuth user:", error);
+    }
+    
     return user;
+  }
+  
+  // Helper function to update user profile with social media data
+  private async updateUserFromSocialProfile(
+    user: User, 
+    profile: {
+      id: string;
+      provider: string;
+      displayName?: string;
+      emails?: Array<{ value: string }>;
+      photos?: Array<{ value: string }>;
+      username?: string;
+      _json?: any;
+    }
+  ): Promise<User> {
+    const updates: Partial<User> = {};
+    
+    // Only update fields that are empty in the user's profile
+    if (!user.avatar && profile.photos && profile.photos.length > 0) {
+      updates.avatar = profile.photos[0].value;
+    }
+    
+    if (!user.bio && profile._json) {
+      switch (profile.provider) {
+        case 'facebook':
+          if (profile._json.about) updates.bio = profile._json.about;
+          break;
+        case 'twitter':
+          if (profile._json.description) updates.bio = profile._json.description;
+          break;
+        case 'google':
+          if (profile._json.tagline) updates.bio = profile._json.tagline;
+          break;
+        case 'linkedin':
+          if (profile._json.headline) updates.bio = profile._json.headline;
+          break;
+        case 'instagram':
+          if (profile._json.bio) updates.bio = profile._json.bio;
+          break;
+      }
+    }
+    
+    if ((!user.interests || user.interests.length === 0) && profile._json) {
+      // Extract interests from provider-specific data
+      switch (profile.provider) {
+        case 'facebook':
+          if (profile._json.interested_in) {
+            updates.interests = profile._json.interested_in;
+          }
+          break;
+        case 'linkedin':
+          if (profile._json.skills && profile._json.skills.values) {
+            updates.interests = profile._json.skills.values.map((skill: any) => skill.skill.name);
+          }
+          break;
+      }
+    }
+    
+    // Only update if there are changes
+    if (Object.keys(updates).length > 0) {
+      return await this.updateUser(user.id, updates);
+    }
+    
+    return user;
+  }
+  
+  // Helper function to generate profile URLs based on platform
+  private generateProfileUrl(platform: string, userId: string): string {
+    switch (platform) {
+      case 'facebook':
+        return `https://facebook.com/${userId}`;
+      case 'twitter':
+        return `https://twitter.com/i/user/${userId}`;
+      case 'instagram':
+        return `https://instagram.com/${userId}`;
+      case 'linkedin':
+        return `https://linkedin.com/in/${userId}`;
+      case 'google':
+        return ``;
+      default:
+        return ``;
+    }
   }
   
   // Payment methods
