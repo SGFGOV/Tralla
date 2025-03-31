@@ -14,6 +14,9 @@ import Groups from "./pages/groups";
 import GroupDetail from "./pages/group-detail";
 import Profile from "./pages/profile";
 import ProfileDetail from "./pages/profile-detail";
+import Checkout from "./pages/checkout";
+import Subscribe from "./pages/subscribe";
+import PaymentDemo from "./pages/payment-demo";
 // Facial recognition functionality will be integrated into profile page
 import AppLayout from "./components/layout/app-layout";
 
@@ -97,6 +100,24 @@ function Router() {
             <ProfileDetail id={Number(params.id)} />
           </PrivateRoute>
         )}
+      </Route>
+      
+      <Route path="/checkout">
+        <PrivateRoute>
+          <Checkout />
+        </PrivateRoute>
+      </Route>
+      
+      <Route path="/subscribe">
+        <PrivateRoute>
+          <Subscribe />
+        </PrivateRoute>
+      </Route>
+      
+      <Route path="/payment-demo">
+        <PrivateRoute>
+          <PaymentDemo />
+        </PrivateRoute>
       </Route>
       
       {/* Facial recognition is now integrated into profile and nearby pages */}

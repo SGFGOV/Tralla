@@ -28,21 +28,7 @@
     "web": {
       "favicon": "./assets/favicon.svg"
     },
-    "plugins": [
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "Allow Tralla to use your location to find people nearby."
-        }
-      ],
-      [
-        "react-native-nfc-manager",
-        {
-          "nfcPermission": "Allow Tralla to use NFC for connecting with people nearby.",
-          "selectIdentifiers": ["F0"]
-        }
-      ]
-    ],
+    "plugins": [],
     "extra": {
       "eas": {
         "projectId": "tralla-app"

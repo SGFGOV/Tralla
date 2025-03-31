@@ -6,6 +6,7 @@ import { z } from "zod";
 import { fileURLToPath } from "url";
 import path from 'path';
 import fs from 'fs';
+import Stripe from 'stripe';
 
 import {
   insertUserSchema,
@@ -1694,18 +1695,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Amount is required' });
       }
       
-      // In a real implementation, you would use the Stripe SDK:
-      // const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-      // const paymentIntent = await stripe.paymentIntents.create({
-      //   amount: Math.round(amount * 100), // Convert to cents
-      //   currency,
-      // });
+      // Create a Stripe instance with the secret key
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: '2025-02-24.acacia', // Using the latest API version available
+      });
       
-      // For now, return a mock payment intent
+      // Create a PaymentIntent
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency,
+      });
+      
+      // Return the client secret to the frontend
       res.json({
-        clientSecret: 'mock_client_secret_' + Math.random().toString(36).substring(2, 15),
+        clientSecret: paymentIntent.client_secret,
         amount,
         currency
+      });
+    } catch (err) {
+      handleErrors(err, res);
+    }
+  });
+  
+  // Add a new endpoint for creating Stripe subscriptions
+  app.post('/api/payment/create-subscription', async (req: Request, res: Response) => {
+    try {
+      // Ensure we have STRIPE_SECRET_KEY
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(500).json({ error: 'Stripe secret key is not configured' });
+      }
+      
+      const { customerId, priceId } = req.body;
+      
+      if (!customerId || !priceId) {
+        return res.status(400).json({ error: 'Customer ID and price ID are required' });
+      }
+      
+      // Create a Stripe instance with the secret key
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: '2025-02-24.acacia', // Using the latest API version available
+      });
+      
+      // Create a subscription
+      const subscription = await stripe.subscriptions.create({
+        customer: customerId,
+        items: [{ price: priceId }],
+        payment_behavior: 'default_incomplete',
+        expand: ['latest_invoice.payment_intent'],
+      });
+      
+      // Return the client secret to the frontend
+      res.json({
+        subscriptionId: subscription.id,
+        clientSecret: subscription.latest_invoice?.payment_intent?.client_secret,
       });
     } catch (err) {
       handleErrors(err, res);
