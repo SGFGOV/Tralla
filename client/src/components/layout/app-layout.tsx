@@ -35,7 +35,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <div className="h-full overflow-hidden flex flex-col">
             <header className="bg-white px-4 py-3 flex items-center justify-between border-b border-neutral-200">
               <div className="flex items-center">
-                <h1 className="text-xl font-bold text-neutral-800">ProxiMeet</h1>
+                <h1 className="text-xl font-bold text-neutral-800">Tralla</h1>
               </div>
               <div className="flex items-center space-x-4">
                 <button className="text-neutral-700">
@@ -58,7 +58,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           {location.latitude ? (
             <div className="flex-1 flex flex-col">
               <div className="text-center mb-2">
-                <div className="text-white text-sm font-bold">ProxiMeet</div>
+                <div className="text-white text-sm font-bold">Tralla</div>
               </div>
               
               <div className="flex-1 flex items-center justify-center relative">
@@ -100,7 +100,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <GlassFrame>
           <div className="flex items-center space-x-3 opacity-80 mb-2">
             <i className="fas fa-circle text-xs"></i>
-            <span className="text-xs">ProxiMeet Active</span>
+            <span className="text-xs">Tralla Active</span>
           </div>
           
           <div className="bg-white bg-opacity-5 p-2 mt-2 rounded">
