@@ -38,6 +38,33 @@ import {
   PaymentMethod,
   InsertPaymentMethod,
   paymentMethods,
+  Trip,
+  InsertTrip,
+  trips,
+  TripParticipant,
+  InsertTripParticipant,
+  tripParticipants,
+  TripItineraryItem,
+  InsertTripItineraryItem,
+  tripItineraryItems,
+  TripExpense,
+  InsertTripExpense,
+  tripExpenses,
+  TripExpenseParticipant,
+  InsertTripExpenseParticipant,
+  tripExpenseParticipants,
+  TripTask,
+  InsertTripTask,
+  tripTasks,
+  PackingListItem,
+  InsertPackingListItem,
+  packingListItems,
+  GroupTicket,
+  InsertGroupTicket,
+  groupTickets,
+  GroupTicketParticipant,
+  InsertGroupTicketParticipant,
+  groupTicketParticipants,
   Transaction,
   InsertTransaction,
   transactions,
@@ -255,6 +282,74 @@ export interface IStorage {
   
   // Stripe extensions
   updateUserStripeInfo(userId: number, info: { stripeCustomerId: string, stripeSubscriptionId?: string }): Promise<User>;
+  
+  // Trip planning operations
+  getTrip(id: number): Promise<Trip | undefined>;
+  getUserTrips(userId: number): Promise<Trip[]>;
+  getGroupTrips(groupId: number): Promise<Trip[]>;
+  createTrip(trip: InsertTrip): Promise<Trip>;
+  updateTrip(id: number, trip: Partial<Trip>): Promise<Trip>;
+  deleteTrip(id: number): Promise<void>;
+  
+  // Trip participants
+  getTripParticipants(tripId: number): Promise<(TripParticipant & { user: User })[]>;
+  getTripParticipant(tripId: number, userId: number): Promise<TripParticipant | undefined>;
+  addTripParticipant(participant: InsertTripParticipant): Promise<TripParticipant>;
+  updateTripParticipantStatus(tripId: number, userId: number, status: string): Promise<TripParticipant>;
+  updateTripParticipantRole(tripId: number, userId: number, role: string): Promise<TripParticipant>;
+  removeTripParticipant(tripId: number, userId: number): Promise<void>;
+  
+  // Trip itinerary
+  getTripItineraryItems(tripId: number): Promise<TripItineraryItem[]>;
+  getTripItineraryItem(id: number): Promise<TripItineraryItem | undefined>;
+  createTripItineraryItem(item: InsertTripItineraryItem): Promise<TripItineraryItem>;
+  updateTripItineraryItem(id: number, item: Partial<TripItineraryItem>): Promise<TripItineraryItem>;
+  deleteTripItineraryItem(id: number): Promise<void>;
+  
+  // Trip expenses
+  getTripExpense(id: number): Promise<TripExpense | undefined>;
+  getTripExpenses(tripId: number): Promise<TripExpense[]>;
+  createTripExpense(expense: InsertTripExpense): Promise<TripExpense>;
+  updateTripExpense(id: number, expense: Partial<TripExpense>): Promise<TripExpense>;
+  deleteTripExpense(id: number): Promise<void>;
+  
+  // Trip expense participants
+  getTripExpenseParticipants(expenseId: number): Promise<(TripExpenseParticipant & { user: User })[]>;
+  getTripExpenseParticipant(expenseId: number, userId: number): Promise<TripExpenseParticipant | undefined>;
+  addTripExpenseParticipant(participant: InsertTripExpenseParticipant): Promise<TripExpenseParticipant>;
+  updateTripExpenseParticipantPaid(expenseId: number, userId: number, paid: boolean): Promise<TripExpenseParticipant>;
+  
+  // Trip tasks
+  getTripTasks(tripId: number): Promise<TripTask[]>;
+  getTripTask(id: number): Promise<TripTask | undefined>;
+  getUserTripTasks(userId: number): Promise<TripTask[]>;
+  createTripTask(task: InsertTripTask): Promise<TripTask>;
+  updateTripTask(id: number, task: Partial<TripTask>): Promise<TripTask>;
+  deleteTripTask(id: number): Promise<void>;
+  
+  // Packing list
+  getPackingListItems(tripId: number): Promise<PackingListItem[]>;
+  getPackingListItem(id: number): Promise<PackingListItem | undefined>;
+  getUserPackingItems(tripId: number, userId: number): Promise<PackingListItem[]>;
+  createPackingListItem(item: InsertPackingListItem): Promise<PackingListItem>;
+  updatePackingListItem(id: number, item: Partial<PackingListItem>): Promise<PackingListItem>;
+  deletePackingListItem(id: number): Promise<void>;
+  
+  // Group tickets
+  getGroupTicket(id: number): Promise<GroupTicket | undefined>;
+  getGroupTickets(groupId: number): Promise<GroupTicket[]>;
+  getTripTickets(tripId: number): Promise<GroupTicket[]>;
+  createGroupTicket(ticket: InsertGroupTicket): Promise<GroupTicket>;
+  updateGroupTicket(id: number, ticket: Partial<GroupTicket>): Promise<GroupTicket>;
+  deleteGroupTicket(id: number): Promise<void>;
+  
+  // Group ticket participants
+  getGroupTicketParticipants(ticketId: number): Promise<(GroupTicketParticipant & { user: User })[]>;
+  getGroupTicketParticipant(ticketId: number, userId: number): Promise<GroupTicketParticipant | undefined>;
+  addGroupTicketParticipant(participant: InsertGroupTicketParticipant): Promise<GroupTicketParticipant>;
+  updateGroupTicketParticipantStatus(ticketId: number, userId: number, status: string): Promise<GroupTicketParticipant>;
+  updateGroupTicketParticipantPayment(ticketId: number, userId: number, amountPaid: number): Promise<GroupTicketParticipant>;
+  removeGroupTicketParticipant(ticketId: number, userId: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -281,6 +376,15 @@ export class MemStorage implements IStorage {
   private notificationPreferences: Map<number, NotificationPreference>;
   private socialMediaAccounts: Map<number, SocialMediaAccount>;
   private otps: Map<number, Otp>;
+  private trips: Map<number, Trip>;
+  private tripParticipants: Map<number, TripParticipant>;
+  private tripItineraryItems: Map<number, TripItineraryItem>;
+  private tripExpenses: Map<number, TripExpense>;
+  private tripExpenseParticipants: Map<number, TripExpenseParticipant>;
+  private tripTasks: Map<number, TripTask>;
+  private packingListItems: Map<number, PackingListItem>;
+  private groupTickets: Map<number, GroupTicket>;
+  private groupTicketParticipants: Map<number, GroupTicketParticipant>;
   
   private userIdCounter: number;
   private proximitySettingsIdCounter: number;
@@ -305,6 +409,15 @@ export class MemStorage implements IStorage {
   private notificationPreferenceIdCounter: number;
   private socialMediaAccountIdCounter: number;
   private otpIdCounter: number;
+  private tripIdCounter: number;
+  private tripParticipantIdCounter: number;
+  private tripItineraryItemIdCounter: number;
+  private tripExpenseIdCounter: number;
+  private tripExpenseParticipantIdCounter: number;
+  private tripTaskIdCounter: number;
+  private packingListItemIdCounter: number;
+  private groupTicketIdCounter: number;
+  private groupTicketParticipantIdCounter: number;
 
   constructor() {
     this.users = new Map();
@@ -330,6 +443,15 @@ export class MemStorage implements IStorage {
     this.notificationPreferences = new Map();
     this.socialMediaAccounts = new Map();
     this.otps = new Map();
+    this.trips = new Map();
+    this.tripParticipants = new Map();
+    this.tripItineraryItems = new Map();
+    this.tripExpenses = new Map();
+    this.tripExpenseParticipants = new Map();
+    this.tripTasks = new Map();
+    this.packingListItems = new Map();
+    this.groupTickets = new Map();
+    this.groupTicketParticipants = new Map();
     
     this.userIdCounter = 1;
     this.proximitySettingsIdCounter = 1;
@@ -354,6 +476,15 @@ export class MemStorage implements IStorage {
     this.notificationPreferenceIdCounter = 1;
     this.socialMediaAccountIdCounter = 1;
     this.otpIdCounter = 1;
+    this.tripIdCounter = 1;
+    this.tripParticipantIdCounter = 1;
+    this.tripItineraryItemIdCounter = 1;
+    this.tripExpenseIdCounter = 1;
+    this.tripExpenseParticipantIdCounter = 1;
+    this.tripTaskIdCounter = 1;
+    this.packingListItemIdCounter = 1;
+    this.groupTicketIdCounter = 1;
+    this.groupTicketParticipantIdCounter = 1;
   }
 
   // User operations

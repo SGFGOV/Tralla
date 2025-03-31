@@ -13,6 +13,8 @@ export default function TabNavigation() {
       setActiveTab('chats');
     } else if (location.startsWith('/groups')) {
       setActiveTab('groups');
+    } else if (location.startsWith('/trips')) {
+      setActiveTab('trips');
     } else if (location.startsWith('/profile')) {
       setActiveTab('profile');
     }
@@ -60,6 +62,18 @@ export default function TabNavigation() {
         >
           <i className="fas fa-users mr-1"></i> 
           <span className="hidden xs:inline">Groups</span>
+        </button>
+        
+        <button 
+          className={`flex-1 py-2 sm:py-3 px-1 sm:px-2 font-medium text-xs sm:text-sm ${
+            activeTab === 'trips' 
+              ? 'text-primary border-b-2 border-primary' 
+              : 'text-neutral-500'
+          }`}
+          onClick={() => handleTabClick('trips')}
+        >
+          <i className="fas fa-suitcase mr-1"></i> 
+          <span className="hidden xs:inline">Trips</span>
         </button>
         
         <button 

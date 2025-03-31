@@ -599,3 +599,290 @@ export const insertOtpSchema = createInsertSchema(otps).pick({
 
 export type InsertOtp = z.infer<typeof insertOtpSchema>;
 export type Otp = typeof otps.$inferSelect;
+
+// Trip planning tables
+export const trips = pgTable("trips", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").default(""),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  location: text("location").default(""),
+  coverImage: text("cover_image").default(""),
+  organizerId: integer("organizer_id").notNull().references(() => users.id),
+  groupId: integer("group_id").references(() => groups.id), // Optional group association
+  status: text("status").default("planning"), // planning, active, completed, cancelled
+  budget: doublePrecision("budget"),
+  currency: text("currency").default("USD"),
+  isPrivate: boolean("is_private").default(false),
+  maxParticipants: integer("max_participants"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTripSchema = createInsertSchema(trips).pick({
+  name: true,
+  description: true,
+  startDate: true,
+  endDate: true,
+  location: true,
+  coverImage: true,
+  organizerId: true,
+  groupId: true,
+  status: true,
+  budget: true,
+  currency: true,
+  isPrivate: true,
+  maxParticipants: true,
+});
+
+export type InsertTrip = z.infer<typeof insertTripSchema>;
+export type Trip = typeof trips.$inferSelect;
+
+// Trip participants
+export const tripParticipants = pgTable("trip_participants", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id").notNull().references(() => trips.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  role: text("role").default("participant"), // organizer, coordinator, participant
+  status: text("status").default("invited"), // invited, confirmed, declined, maybe
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
+export const insertTripParticipantSchema = createInsertSchema(tripParticipants).pick({
+  tripId: true,
+  userId: true,
+  role: true,
+  status: true,
+});
+
+export type InsertTripParticipant = z.infer<typeof insertTripParticipantSchema>;
+export type TripParticipant = typeof tripParticipants.$inferSelect;
+
+// Trip itinerary items
+export const tripItineraryItems = pgTable("trip_itinerary_items", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id").notNull().references(() => trips.id),
+  title: text("title").notNull(),
+  description: text("description").default(""),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  location: text("location").default(""),
+  activityType: text("activity_type").default("generic"), // transport, accommodation, sightseeing, meal, etc.
+  bookingReference: text("booking_reference"),
+  bookingUrl: text("booking_url"),
+  cost: doublePrecision("cost"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTripItineraryItemSchema = createInsertSchema(tripItineraryItems).pick({
+  tripId: true,
+  title: true,
+  description: true,
+  startTime: true,
+  endTime: true,
+  location: true,
+  activityType: true,
+  bookingReference: true,
+  bookingUrl: true,
+  cost: true,
+  notes: true,
+});
+
+export type InsertTripItineraryItem = z.infer<typeof insertTripItineraryItemSchema>;
+export type TripItineraryItem = typeof tripItineraryItems.$inferSelect;
+
+// Trip expenses (specialized for trips)
+export const tripExpenses = pgTable("trip_expenses", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id").notNull().references(() => trips.id),
+  name: text("name").notNull(),
+  description: text("description").default(""),
+  amount: doublePrecision("amount").notNull(),
+  currency: text("currency").default("USD"),
+  category: text("category").default("other"), // transport, accommodation, food, activities, shopping, etc.
+  payerId: integer("payer_id").notNull().references(() => users.id),
+  date: timestamp("date").notNull(),
+  receipt: text("receipt"), // URL to receipt image
+  isShared: boolean("is_shared").default(true), // Whether expense is split between participants
+  settled: boolean("settled").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTripExpenseSchema = createInsertSchema(tripExpenses).pick({
+  tripId: true,
+  name: true,
+  description: true,
+  amount: true,
+  currency: true,
+  category: true,
+  payerId: true,
+  date: true,
+  receipt: true,
+  isShared: true,
+});
+
+export type InsertTripExpense = z.infer<typeof insertTripExpenseSchema>;
+export type TripExpense = typeof tripExpenses.$inferSelect;
+
+// Trip expense participants
+export const tripExpenseParticipants = pgTable("trip_expense_participants", {
+  id: serial("id").primaryKey(),
+  expenseId: integer("expense_id").notNull().references(() => tripExpenses.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  share: doublePrecision("share").notNull(),
+  paid: boolean("paid").default(false),
+});
+
+export const insertTripExpenseParticipantSchema = createInsertSchema(tripExpenseParticipants).pick({
+  expenseId: true,
+  userId: true,
+  share: true,
+  paid: true,
+});
+
+export type InsertTripExpenseParticipant = z.infer<typeof insertTripExpenseParticipantSchema>;
+export type TripExpenseParticipant = typeof tripExpenseParticipants.$inferSelect;
+
+// Trip tasks table for delegation and assignments
+export const tripTasks = pgTable("trip_tasks", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id").notNull().references(() => trips.id),
+  title: text("title").notNull(),
+  description: text("description").default(""),
+  assigneeId: integer("assignee_id").references(() => users.id), // User responsible for task
+  dueDate: timestamp("due_date"),
+  priority: text("priority").default("medium"), // low, medium, high, urgent
+  status: text("status").default("pending"), // pending, in_progress, completed, cancelled
+  category: text("category").default("general"), // research, booking, packing, etc.
+  reminderEnabled: boolean("reminder_enabled").default(true),
+  reminderTime: timestamp("reminder_time"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTripTaskSchema = createInsertSchema(tripTasks).pick({
+  tripId: true,
+  title: true,
+  description: true,
+  assigneeId: true,
+  dueDate: true,
+  priority: true,
+  status: true,
+  category: true,
+  reminderEnabled: true,
+  reminderTime: true,
+});
+
+export type InsertTripTask = z.infer<typeof insertTripTaskSchema>;
+export type TripTask = typeof tripTasks.$inferSelect;
+
+// Packing list items
+export const packingListItems = pgTable("packing_list_items", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id").notNull().references(() => trips.id),
+  name: text("name").notNull(),
+  category: text("category").default("general"), // clothing, toiletries, documents, electronics, etc.
+  quantity: integer("quantity").default(1),
+  packed: boolean("packed").default(false),
+  essential: boolean("essential").default(false),
+  assigneeId: integer("assignee_id").references(() => users.id), // Who's responsible for bringing this item
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPackingListItemSchema = createInsertSchema(packingListItems).pick({
+  tripId: true,
+  name: true,
+  category: true,
+  quantity: true,
+  packed: true,
+  essential: true,
+  assigneeId: true,
+  notes: true,
+});
+
+export type InsertPackingListItem = z.infer<typeof insertPackingListItemSchema>;
+export type PackingListItem = typeof packingListItems.$inferSelect;
+
+// Group Tickets
+export const groupTickets = pgTable("group_tickets", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id").references(() => trips.id), // For trip-related tickets
+  groupId: integer("group_id").references(() => groups.id), // For standalone group tickets
+  name: text("name").notNull(), // Event name or ticket description
+  eventDate: timestamp("event_date").notNull(),
+  venue: text("venue").default(""),
+  ticketType: text("ticket_type").default("general"), // general, vip, reserved, etc.
+  totalSeats: integer("total_seats").notNull(),
+  availableSeats: integer("available_seats").notNull(),
+  pricePerPerson: doublePrecision("price_per_person").notNull(),
+  currency: text("currency").default("USD"),
+  bookingReference: text("booking_reference"),
+  bookingStatus: text("booking_status").default("pending"), // pending, confirmed, cancelled
+  paymentStatus: text("payment_status").default("unpaid"), // unpaid, partial, paid
+  organizerId: integer("organizer_id").notNull().references(() => users.id),
+  notes: text("notes"),
+  bookingUrl: text("booking_url"),
+  ticketImage: text("ticket_image"), // URL to ticket image
+  isRefundable: boolean("is_refundable").default(false),
+  refundPolicy: text("refund_policy"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertGroupTicketSchema = createInsertSchema(groupTickets).pick({
+  tripId: true,
+  groupId: true,
+  name: true,
+  eventDate: true,
+  venue: true,
+  ticketType: true,
+  totalSeats: true,
+  availableSeats: true,
+  pricePerPerson: true,
+  currency: true,
+  bookingReference: true,
+  bookingStatus: true,
+  paymentStatus: true,
+  organizerId: true,
+  notes: true,
+  bookingUrl: true,
+  ticketImage: true,
+  isRefundable: true,
+  refundPolicy: true,
+});
+
+export type InsertGroupTicket = z.infer<typeof insertGroupTicketSchema>;
+export type GroupTicket = typeof groupTickets.$inferSelect;
+
+// Group Ticket Participants
+export const groupTicketParticipants = pgTable("group_ticket_participants", {
+  id: serial("id").primaryKey(),
+  ticketId: integer("ticket_id").notNull().references(() => groupTickets.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  seatNumber: text("seat_number"),
+  status: text("status").default("pending"), // pending, confirmed, cancelled
+  paymentStatus: text("payment_status").default("unpaid"), // unpaid, paid
+  amountPaid: doublePrecision("amount_paid").default(0),
+  paymentDate: timestamp("payment_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertGroupTicketParticipantSchema = createInsertSchema(groupTicketParticipants).pick({
+  ticketId: true,
+  userId: true,
+  seatNumber: true,
+  status: true,
+  paymentStatus: true,
+  amountPaid: true,
+  paymentDate: true,
+});
+
+export type InsertGroupTicketParticipant = z.infer<typeof insertGroupTicketParticipantSchema>;
+export type GroupTicketParticipant = typeof groupTicketParticipants.$inferSelect;
