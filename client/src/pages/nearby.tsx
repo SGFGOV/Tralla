@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../contexts/auth-context";
 import { useLocation } from "@/hooks/use-location";
@@ -6,11 +6,15 @@ import { useWebSocket } from "@/hooks/use-web-socket";
 import ProximitySearch from "@/components/ui/proximity-search";
 import ProfileCard from "@/components/ui/profile-card";
 import { useToast } from "@/hooks/use-toast";
+import LiveFaceDetection from "@/components/facial-recognition/live-face-detection";
+import { Button } from "@/components/ui/button";
+import { Camera, List } from "lucide-react";
 
 export default function Nearby() {
   const { user } = useAuth();
   const location = useLocation();
   const { toast } = useToast();
+  const [viewMode, setViewMode] = useState<'list' | 'camera'>('list');
   
   const { 
     connected, 
@@ -92,43 +96,84 @@ export default function Nearby() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <ProximitySearch
-        radius={proximitySettings?.radius || 100}
-        onRadiusChange={handleRadiusChange}
-      />
-      
-      {nearbyUsers.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-8 text-center">
-          <div className="w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-              <line x1="9" y1="9" x2="9.01" y2="9" />
-              <line x1="15" y1="9" x2="15.01" y2="9" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-medium text-neutral-800">No one nearby</h3>
-          <p className="text-sm text-neutral-500 mt-1">
-            Try increasing your search radius or move to a more populated area
-          </p>
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* View mode switcher */}
+      <div className="sticky top-0 z-10 flex p-2 gap-2 bg-white border-b">
+        <Button
+          variant={viewMode === 'list' ? 'default' : 'outline'}
+          size="sm"
+          className="flex-1"
+          onClick={() => setViewMode('list')}
+        >
+          <List className="w-4 h-4 mr-2" />
+          List View
+        </Button>
+        <Button
+          variant={viewMode === 'camera' ? 'default' : 'outline'}
+          size="sm"
+          className="flex-1"
+          onClick={() => setViewMode('camera')}
+        >
+          <Camera className="w-4 h-4 mr-2" />
+          Camera View
+        </Button>
+      </div>
+
+      {viewMode === 'camera' ? (
+        // Live camera face detection view
+        <div className="flex-1 overflow-hidden">
+          <LiveFaceDetection />
         </div>
       ) : (
-        <div>
-          {nearbyUsers.map((nearbyUser) => (
-            <ProfileCard 
-              key={nearbyUser.id}
-              user={nearbyUser}
-              distance={Math.round(
-                calculateDistance(
-                  location.latitude!, 
-                  location.longitude!, 
-                  nearbyUser.location?.latitude, 
-                  nearbyUser.location?.longitude
-                )
-              )}
-            />
-          ))}
+        // List view of nearby users
+        <div className="flex-1 overflow-y-auto">
+          <ProximitySearch
+            radius={proximitySettings?.radius || 100}
+            onRadiusChange={handleRadiusChange}
+          />
+          
+          {nearbyUsers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                  <line x1="9" y1="9" x2="9.01" y2="9" />
+                  <line x1="15" y1="9" x2="15.01" y2="9" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-neutral-800">No one nearby</h3>
+              <p className="text-sm text-neutral-500 mt-1">
+                Try increasing your search radius or move to a more populated area
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-4 flex items-center"
+                onClick={() => setViewMode('camera')}
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                Try Camera Detection
+              </Button>
+            </div>
+          ) : (
+            <div>
+              {nearbyUsers.map((nearbyUser) => (
+                <ProfileCard 
+                  key={nearbyUser.id}
+                  user={nearbyUser}
+                  distance={Math.round(
+                    calculateDistance(
+                      location.latitude!, 
+                      location.longitude!, 
+                      nearbyUser.location?.latitude, 
+                      nearbyUser.location?.longitude
+                    )
+                  )}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
