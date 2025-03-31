@@ -6,7 +6,7 @@ interface GlassFrameProps {
 
 export default function GlassFrame({ children }: GlassFrameProps) {
   return (
-    <div className="glass-frame bg-black bg-opacity-70 w-[400px] h-[225px] relative">
+    <div className="glass-frame bg-black bg-opacity-70 w-full max-w-[400px] h-auto aspect-video relative rounded-lg shadow-lg">
       <div className="h-full p-3 overflow-hidden text-white">
         {children}
       </div>

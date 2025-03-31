@@ -6,7 +6,7 @@ interface WatchFrameProps {
 
 export default function WatchFrame({ children }: WatchFrameProps) {
   return (
-    <div className="smartwatch-frame bg-black w-[300px] h-[300px] relative">
+    <div className="smartwatch-frame bg-black w-full max-w-[300px] h-auto aspect-square relative rounded-full overflow-hidden shadow-lg">
       <div className="h-full p-3 overflow-hidden flex flex-col">
         <header className="flex justify-between items-center mb-2">
           <div className="text-white text-xs">
