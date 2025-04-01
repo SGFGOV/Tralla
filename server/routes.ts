@@ -270,32 +270,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post('/api/auth/login', async (req: Request, res: Response) => {
     try {
-      // Handle both old format (username) and new format (identifier)
       const data = z.object({
-        username: z.string().optional(),
-        identifier: z.string().optional(),
+        username: z.string(),
         password: z.string(),
       }).parse(req.body);
       
-      // Determine which field to use for identification
-      const identifier = data.identifier || data.username || "";
+      // First, try direct username lookup for backward compatibility
+      let user = await storage.getUserByUsername(data.username);
       
-      // Make sure we have either a username or identifier
-      if (!identifier) {
-        return res.status(400).json({ error: 'Email, phone number, or username is required' });
+      // If not found by username, try email lookup
+      if (!user) {
+        user = await storage.getUserByEmail(data.username);
       }
       
-      // Try to find user by email first
-      let user = await storage.getUserByEmail(identifier);
-      
-      // If not found by email, try to find by phone number
+      // If still not found, try phone number lookup
       if (!user) {
-        user = await storage.getUserByPhone(identifier);
-      }
-      
-      // If still not found, try username as a fallback for existing accounts
-      if (!user) {
-        user = await storage.getUserByUsername(identifier);
+        user = await storage.getUserByPhone(data.username);
       }
       
       // If no user found with the provided identifier

@@ -24,7 +24,7 @@ import { apiRequest } from "@/lib/queryClient";
 
 // Password login form schema
 const passwordLoginSchema = z.object({
-  identifier: z.string().min(1, "Email or phone number is required"),
+  username: z.string().min(1, "Email or phone number is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -47,7 +47,7 @@ export default function Login() {
   const passwordForm = useForm<z.infer<typeof passwordLoginSchema>>({
     resolver: zodResolver(passwordLoginSchema),
     defaultValues: {
-      identifier: "",
+      username: "",
       password: "",
     },
   });
@@ -254,7 +254,7 @@ export default function Login() {
                 <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
                   <FormField
                     control={passwordForm.control}
-                    name="identifier"
+                    name="username"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Email or Phone</FormLabel>
