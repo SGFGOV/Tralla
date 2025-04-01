@@ -231,6 +231,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(500).json({ error: 'Server error' });
   };
   
+  // Development-only route to clear all users
+  app.post('/api/dev/clear-users', async (req: Request, res: Response) => {
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const userDB = (storage as any).users;
+        if (userDB) {
+          userDB.length = 0; // Clear the users array
+          res.status(200).json({ message: 'All users have been cleared' });
+        } else {
+          res.status(500).json({ error: 'User database not found' });
+        }
+      } catch (err) {
+        handleErrors(err, res);
+      }
+    } else {
+      res.status(403).json({ error: 'This endpoint is only available in development mode' });
+    }
+  });
+  
   // =====
   // Routes
   // =====

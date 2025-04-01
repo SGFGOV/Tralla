@@ -353,6 +353,8 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  users: User[] = [];
+  
   private users: Map<number, User>;
   private proximitySettings: Map<number, ProximitySetting>;
   private messages: Map<number, Message>;
