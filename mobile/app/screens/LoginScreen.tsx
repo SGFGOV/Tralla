@@ -13,13 +13,13 @@ import {
 import { StatusBar } from 'expo-status-bar';
 
 export default function LoginScreen({ navigation }: any) {
-  const [username, setUsername] = useState('');
+  const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!username || !password) {
-      Alert.alert('Error', 'Please enter both username and password.');
+    if (!emailOrPhone || !password) {
+      Alert.alert('Error', 'Please enter both email/phone and password.');
       return;
     }
 
@@ -32,19 +32,19 @@ export default function LoginScreen({ navigation }: any) {
       //   headers: {
       //     'Content-Type': 'application/json',
       //   },
-      //   body: JSON.stringify({ username, password }),
+      //   body: JSON.stringify({ username: emailOrPhone, password }),
       // });
 
       // Simulate network request
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // For demo purposes only - in production, validate with real API:
-      if (username === 'demo' && password === 'password') {
+      if (emailOrPhone === 'demo@tralla.com' && password === 'password') {
         // Success - Navigate to main app
         navigation.replace('Nearby');
       } else {
         // Auth failed
-        Alert.alert('Login Failed', 'Invalid username or password');
+        Alert.alert('Login Failed', 'Invalid email/phone or password');
       }
     } catch (error) {
       Alert.alert('Error', 'Something went wrong. Please try again later.');
@@ -67,11 +67,12 @@ export default function LoginScreen({ navigation }: any) {
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Username"
+            placeholder="Email or Phone"
             placeholderTextColor="#999"
-            value={username}
-            onChangeText={setUsername}
+            value={emailOrPhone}
+            onChangeText={setEmailOrPhone}
             autoCapitalize="none"
+            keyboardType="email-address"
           />
         </View>
         
@@ -110,7 +111,7 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#8b5cf6', // Purple-600 from Tailwind
   },
   backgroundImage: {
     flex: 1,
@@ -123,10 +124,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 42,
+    fontSize: 48,
     fontWeight: 'bold',
     color: 'white',
     marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   subtitle: {
     fontSize: 18,
@@ -147,11 +151,16 @@ const styles = StyleSheet.create({
   },
   button: {
     width: '100%',
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#7c4dff', // Brighter purple to simulate gradient
     borderRadius: 10,
     padding: 15,
     alignItems: 'center',
     marginTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
   },
   buttonDisabled: {
     backgroundColor: '#6b7280',

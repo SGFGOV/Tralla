@@ -208,11 +208,11 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-600 to-primary p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            <span className="text-primary">Tralla</span>
+          <CardTitle className="text-3xl font-bold text-center">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600">Tralla</span>
           </CardTitle>
           <CardDescription className="text-center">
             Sign in to connect with people nearby
@@ -289,7 +289,11 @@ export default function Login() {
                     Forgot your password?
                   </Button>
                   
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90" 
+                    disabled={isLoading}
+                  >
                     {isLoading ? "Signing in..." : "Sign In"}
                   </Button>
                 </form>
@@ -315,7 +319,11 @@ export default function Login() {
                       )}
                     />
                     
-                    <Button type="submit" className="w-full" disabled={isLoading}>
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90" 
+                      disabled={isLoading}
+                    >
                       {isLoading ? "Sending..." : "Send OTP"}
                     </Button>
                   </form>
@@ -361,7 +369,7 @@ export default function Login() {
                     </div>
                     
                     <Button 
-                      className="w-full" 
+                      className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90" 
                       onClick={handleVerifyOtp} 
                       disabled={otpValue.length !== 6 || isLoading}
                     >
