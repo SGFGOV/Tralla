@@ -270,10 +270,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post('/api/auth/login', async (req: Request, res: Response) => {
     try {
-      const { identifier, password } = z.object({
-        identifier: z.string(),
+      // Handle both old format (username) and new format (identifier)
+      const data = z.object({
+        username: z.string().optional(),
+        identifier: z.string().optional(),
         password: z.string(),
       }).parse(req.body);
+      
+      // Determine which field to use for identification
+      const identifier = data.identifier || data.username || "";
+      
+      // Make sure we have either a username or identifier
+      if (!identifier) {
+        return res.status(400).json({ error: 'Email, phone number, or username is required' });
+      }
       
       // Try to find user by email first
       let user = await storage.getUserByEmail(identifier);
@@ -294,7 +304,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check password
-      if (user.password !== password) {
+      if (user.password !== data.password) {
         return res.status(401).json({ error: 'Invalid email/phone or password' });
       }
       
