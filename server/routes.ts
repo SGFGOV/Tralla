@@ -270,20 +270,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post('/api/auth/login', async (req: Request, res: Response) => {
     try {
-      const { username, password } = z.object({
-        username: z.string(),
+      const { identifier, password } = z.object({
+        identifier: z.string(),
         password: z.string(),
       }).parse(req.body);
       
-      // Find user by username
-      const user = await storage.getUserByUsername(username);
+      // Try to find user by email first
+      let user = await storage.getUserByEmail(identifier);
+      
+      // If not found by email, try to find by phone number
       if (!user) {
-        return res.status(401).json({ error: 'Invalid username or password' });
+        user = await storage.getUserByPhone(identifier);
+      }
+      
+      // If still not found, try username as a fallback for existing accounts
+      if (!user) {
+        user = await storage.getUserByUsername(identifier);
+      }
+      
+      // If no user found with the provided identifier
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid email/phone or password' });
       }
       
       // Check password
       if (user.password !== password) {
-        return res.status(401).json({ error: 'Invalid username or password' });
+        return res.status(401).json({ error: 'Invalid email/phone or password' });
       }
       
       // Update user status
@@ -388,9 +400,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Find the OTP
       let otp;
       if (email) {
-        otp = await storage.getOtpByEmail(email);
+        otp = await storage.getOtpByEmail(email, 'login');
       } else if (phone) {
-        otp = await storage.getOtpByPhone(phone);
+        otp = await storage.getOtpByPhone(phone, 'login');
       }
       
       if (!otp) {
@@ -421,7 +433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Mark OTP as verified
-      await storage.markOtpAsVerified(otp.id);
+      await storage.verifyOtp(otp.id);
       
       // Check if this is for password reset
       if (otp.type === 'reset' && otp.userId) {
