@@ -352,7 +352,7 @@ export interface IStorage {
   removeGroupTicketParticipant(ticketId: number, userId: number): Promise<void>;
 }
 
-export class MemStorage implements IStorage {
+export class MemStorage implements IStorage, IExtendedStorage {
   users: User[] = [];
   
   private users: Map<number, User>;

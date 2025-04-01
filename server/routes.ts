@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { MemStorage } from "./storage";
+import { extendMemStorageWithVendorSupport } from "./vendor-storage-extension";
 import { WebSocketServer, WebSocket } from "ws";
 import { z } from "zod";
 import { fileURLToPath } from "url";
@@ -25,6 +26,15 @@ import {
   insertPrivacySettingSchema,
   insertSocialMediaAccountSchema,
   insertOtpSchema,
+  
+  // Vendor schemas
+  insertVendorSchema,
+  insertDiscountCodeSchema,
+  insertRestaurantSchema,
+  insertMovieTheaterSchema,
+  insertMovieSchema,
+  insertMovieShowingSchema,
+  insertConcessionItemSchema,
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -52,8 +62,19 @@ interface UserConnection {
 // Store active connections
 const connections: UserConnection[] = [];
 
+// Import vendor routes
+import { registerVendorRoutes } from './vendor-routes';
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+  
+  // Create the storage instance
+  const memStorage = new MemStorage();
+  // Extend with vendor functionality
+  const storage = extendMemStorageWithVendorSupport(memStorage);
+  
+  // Register vendor routes
+  registerVendorRoutes(app, storage);
   
   // Set up WebSocket server for real-time communication
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });

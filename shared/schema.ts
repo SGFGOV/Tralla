@@ -886,3 +886,6 @@ export const insertGroupTicketParticipantSchema = createInsertSchema(groupTicket
 
 export type InsertGroupTicketParticipant = z.infer<typeof insertGroupTicketParticipantSchema>;
 export type GroupTicketParticipant = typeof groupTicketParticipants.$inferSelect;
+
+// Import extended schema tables
+export * from './schema-extension';
