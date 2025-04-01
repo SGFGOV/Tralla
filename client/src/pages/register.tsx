@@ -36,6 +36,7 @@ export default function Register() {
 
   // Extended schema with password confirmation and phone
   const registerSchema = insertUserSchema
+    .omit({ username: true }) // Remove username requirement
     .extend({
       confirmPassword: z.string(),
       phone: z.string().optional(),
@@ -55,7 +56,6 @@ export default function Register() {
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      username: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -226,11 +226,11 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-primary/5 p-4">
+      <Card className="w-full max-w-md border shadow-lg">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            <span className="text-primary">Tralla</span>
+          <CardTitle className="text-3xl font-bold text-center">
+            <span className="bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">Tralla</span>
           </CardTitle>
           <CardDescription className="text-center">
             Create an account to connect with people nearby
@@ -270,20 +270,7 @@ export default function Register() {
             <TabsContent value="email" className="mt-4">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Username</FormLabel>
-                        <FormControl>
-                          <Input placeholder="johndoe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
+
                   <FormField
                     control={form.control}
                     name="email"
@@ -379,7 +366,7 @@ export default function Register() {
                     )}
                   />
                   
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90" disabled={isLoading}>
                     {isLoading ? "Registering..." : "Register"}
                   </Button>
                 </form>
@@ -419,7 +406,7 @@ export default function Register() {
                       )}
                     />
                     
-                    <Button type="submit" className="w-full" disabled={isLoading}>
+                    <Button type="submit" className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90" disabled={isLoading}>
                       {isLoading ? "Sending..." : "Send Verification Code"}
                     </Button>
                   </form>
@@ -465,7 +452,7 @@ export default function Register() {
                     </div>
                     
                     <Button 
-                      className="w-full" 
+                      className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90" 
                       onClick={handleVerifyRegistrationOtp} 
                       disabled={otpValue.length !== 6 || isLoading}
                     >

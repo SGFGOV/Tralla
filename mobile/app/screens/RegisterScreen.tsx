@@ -13,7 +13,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 
 export default function RegisterScreen({ navigation }: any) {
-  const [username, setUsername] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -21,7 +21,7 @@ export default function RegisterScreen({ navigation }: any) {
 
   const handleRegister = async () => {
     // Validation
-    if (!username || !email || !password || !confirmPassword) {
+    if (!displayName || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -47,7 +47,7 @@ export default function RegisterScreen({ navigation }: any) {
       //   headers: {
       //     'Content-Type': 'application/json',
       //   },
-      //   body: JSON.stringify({ username, email, password }),
+      //   body: JSON.stringify({ email, password, displayName }),
       // });
 
       // Simulate network request
@@ -75,17 +75,19 @@ export default function RegisterScreen({ navigation }: any) {
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join Tralla today</Text>
+          <Text style={styles.title}>
+            <Text style={styles.gradientTitle}>Tralla</Text>
+          </Text>
+          <Text style={styles.subtitle}>Create an account to connect with people nearby</Text>
           
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="Username"
+              placeholder="Display Name"
               placeholderTextColor="#999"
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
+              value={displayName}
+              onChangeText={setDisplayName}
+              autoCapitalize="words"
             />
           </View>
           
@@ -124,12 +126,12 @@ export default function RegisterScreen({ navigation }: any) {
           </View>
           
           <TouchableOpacity 
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.buttonGradient, isLoading && styles.buttonDisabled]}
             onPress={handleRegister}
             disabled={isLoading}
           >
             <Text style={styles.buttonText}>
-              {isLoading ? 'Creating Account...' : 'Sign Up'}
+              {isLoading ? 'Creating Account...' : 'Register'}
             </Text>
           </TouchableOpacity>
           
@@ -160,16 +162,24 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
     color: 'white',
     marginTop: 40,
     marginBottom: 8,
+    textAlign: 'center',
+  },
+  gradientTitle: {
+    color: '#fff',
+    textShadowColor: 'rgba(155, 89, 182, 0.7)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 10,
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: 16,
     color: 'rgba(255, 255, 255, 0.8)',
     marginBottom: 30,
+    textAlign: 'center',
   },
   inputContainer: {
     width: '100%',
@@ -190,6 +200,19 @@ const styles = StyleSheet.create({
     padding: 15,
     alignItems: 'center',
     marginTop: 10,
+  },
+  buttonGradient: {
+    width: '100%',
+    backgroundColor: '#7c3aed',
+    borderRadius: 10,
+    padding: 15,
+    alignItems: 'center',
+    marginTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
   },
   buttonDisabled: {
     backgroundColor: '#6b7280',
